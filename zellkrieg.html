@@ -1,0 +1,1344 @@
+<title>Zellkrieg – Tentacle-Wars-Prototyp</title>
+<style>
+  /* ================= FARB- & LAYOUT-TOKENS ================= */
+  :root {
+    --bg:      #0a111c;   /* tiefes Blauschwarz – "Nährlösung" */
+    --player:  #4fc1ff;   /* Spieler: Cyan-Blau */
+    --enemy:   #ff5964;   /* Gegner: Koralle-Rot */
+    --neutral: #8593a1;   /* Neutral: kühles Grau */
+    --text:    #c7d3e0;
+    --dim:     #6b7a8c;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; overflow: hidden; background: var(--bg);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: var(--text);
+    -webkit-user-select: none; user-select: none;
+  }
+  #game { position: fixed; inset: 0; display: block; cursor: crosshair; touch-action: none; }
+
+  /* ================= HUD OBEN ================= */
+  .hud-top {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 18px; pointer-events: none;
+    background: linear-gradient(rgba(8,13,22,.85), transparent);
+  }
+  .hud-top h1 {
+    margin: 0; font-size: 15px; font-weight: 700;
+    letter-spacing: .38em; text-transform: uppercase; color: var(--text);
+  }
+  .hud-top h1 span { color: var(--player); }
+  .status { display: flex; align-items: center; gap: 14px; font-size: 13px; }
+  .chip { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+  .chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .chip.blue i { background: var(--player); box-shadow: 0 0 8px var(--player); }
+  .chip.red  i { background: var(--enemy);  box-shadow: 0 0 8px var(--enemy); }
+  #restart, #btnLevels {
+    pointer-events: auto; cursor: pointer;
+    background: transparent; color: var(--dim);
+    border: 1px solid rgba(133,147,161,.35); border-radius: 6px;
+    padding: 4px 12px; font: inherit; font-size: 12px; letter-spacing: .08em;
+  }
+  #restart:hover, #restart:focus-visible,
+  #btnLevels:hover, #btnLevels:focus-visible { color: var(--text); border-color: var(--text); outline: none; }
+
+  /* ================= LEVEL-AUSWAHL ================= */
+  #levelSelect {
+    position: fixed; inset: 0; z-index: 5;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    gap: 6px; background: rgba(8,13,22,.9); backdrop-filter: blur(4px);
+  }
+  #levelSelect.hidden { display: none; }
+  #levelSelect h2 {
+    margin: 0; font-size: 34px; font-weight: 800;
+    letter-spacing: .38em; text-transform: uppercase; color: var(--text);
+  }
+  #levelSelect h2 span { color: var(--player); }
+  #levelSelect .sub { margin: 0 0 14px; color: var(--dim); font-size: 13px; letter-spacing: .12em; }
+  .levels { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; padding: 0 20px; }
+  .level-card {
+    width: 250px; text-align: left; cursor: pointer; font: inherit;
+    background: rgba(16,26,42,.92); color: var(--text);
+    border: 1px solid rgba(133,147,161,.3); border-radius: 10px; padding: 16px 18px;
+  }
+  .level-card:hover, .level-card:focus-visible { border-color: var(--player); outline: none; }
+  .level-card .tag {
+    display: inline-block; margin-bottom: 8px; padding: 2px 8px;
+    font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--player); border: 1px solid rgba(79,193,255,.4); border-radius: 999px;
+  }
+  .level-card h3 { margin: 0 0 6px; font-size: 16px; }
+  .level-card p { margin: 0; font-size: 12px; color: var(--dim); line-height: 1.55; }
+
+  /* ================= LEGENDE UNTEN ================= */
+  .legend {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; justify-content: center; align-items: center;
+    gap: 20px; flex-wrap: wrap; padding: 10px 12px 12px;
+    pointer-events: none; font-size: 12px; color: var(--dim);
+    background: linear-gradient(transparent, rgba(8,13,22,.9));
+  }
+  .legend-item { display: flex; align-items: center; gap: 7px; }
+  .legend-item canvas { display: block; }
+  .hint {
+    position: fixed; bottom: 44px; left: 0; right: 0;
+    text-align: center; font-size: 12px; color: var(--dim);
+    pointer-events: none; letter-spacing: .04em;
+  }
+
+  /* ================= SIEG/NIEDERLAGE-OVERLAY ================= */
+  #overlay {
+    position: fixed; inset: 0; display: none;
+    flex-direction: column; justify-content: center; align-items: center; gap: 18px;
+    background: rgba(8, 13, 22, .72); backdrop-filter: blur(3px);
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 {
+    margin: 0; font-size: 52px; font-weight: 800;
+    letter-spacing: .3em; text-transform: uppercase; text-wrap: balance;
+  }
+  #overlay p { margin: 0; color: var(--dim); font-size: 14px; }
+  #overlay button {
+    cursor: pointer; font: inherit; font-size: 14px; letter-spacing: .1em;
+    color: var(--bg); background: var(--text); border: none;
+    border-radius: 8px; padding: 10px 26px; margin-top: 6px;
+  }
+  #overlay button:hover, #overlay button:focus-visible { background: #fff; outline: none; }
+</style>
+
+<canvas id="game"></canvas>
+
+<div class="hud-top">
+  <h1>Zell<span>krieg</span></h1>
+  <div class="status">
+    <span class="chip blue"><i></i><span id="countPlayer">0</span> Zellen</span>
+    <span class="chip red"><i></i><span id="countEnemy">0</span> Zellen</span>
+    <button id="restart" type="button">Neustart</button>
+    <button id="btnLevels" type="button">Level</button>
+  </div>
+</div>
+
+<div class="hint" id="hint">
+  Von eigener Zelle zu einem Ziel ziehen: Tentakel ausfahren (kostet Punkte) &middot;
+  Ziel erneut anklicken: Tentakel einziehen &middot;
+  Auf freier Fl&auml;che &uuml;ber eine EIGENE Tentakel wischen: durchschneiden
+</div>
+
+<div id="levelSelect">
+  <h2>Zell<span>krieg</span></h2>
+  <p class="sub">LEVEL W&Auml;HLEN</p>
+  <div class="levels" id="levelCards"></div>
+</div>
+<div class="legend" id="legend"></div>
+
+<div id="overlay">
+  <h2 id="overlayTitle">Sieg</h2>
+  <p id="overlayText"></p>
+  <button id="overlayRestart" type="button">Noch einmal</button>
+</div>
+
+<script>
+"use strict";
+
+/* ======================================================================
+   KONFIGURATION – hier Werte und Level anpassen
+   ====================================================================== */
+
+const CONFIG = {
+  // --- Tentakel ---
+  tentacleSpeed:  55,   // Wachstums-Geschwindigkeit der Tentakelspitze (Welt-Pixel/Sek.) – bewusst langsam
+  retractSpeed:   130,  // Geschwindigkeit beim Einziehen bzw. von abgetrennten Stücken
+  lengthPerUnit:  22,   // Pixel Tentakel pro Punkt: Wachstum KOSTET Punkte (lange Tentakel = teuer)
+  transferRate:   3,    // max. Punkte/Sek. pro angedockter Tentakel.
+                         // HEILUNG ist zusätzlich auf die Produktion der Quelle
+                         // gedeckelt (Unterstützen kostet nie Vorrat).
+                         // ANGRIFFE und DUELLE zapfen dagegen den VORRAT mit
+                         // voller Rate an – gespeicherte Punkte werden in
+                         // Schaden umgemünzt, guter Nachschub entscheidet.
+  flowDotSpeed:   80,   // rein visuell: Geschwindigkeit der Fluss-Punkte auf der Tentakel
+
+  // Überschuss-Durchleitung: Ist eine Zelle voll, verfallen eingehende Heilung
+  // und eigene Produktion nicht, sondern landen in einem Puffer und werden
+  // ZUSÄTZLICH durch die eigenen Tentakel weitergeleitet (Symbiose-Ketten:
+  // Heiler -> Angreifer -> Feind). So groß darf der Puffer werden:
+  overflowBuffer: 12,
+
+  // --- Tentakel-Slots: wie viele Tentakel eine Zelle gleichzeitig ausfahren darf ---
+  slotBase: 1,          // Grundausstattung
+  slotStep: 25,         // pro slotStep AKTUELLE Punkte ein zusätzlicher Slot ...
+  slotMax:  4,          // ... bis maximal so viele
+
+  // --- Sonstiges ---
+  bunkerDefense:   1,    // Bunker senkt den Schaden JEDES ankommenden Punkts um diesen Wert
+  neutralProduces: false,// Sollen auch neutrale Zellen produzieren?
+
+  // "Heimvorteil" in Tentakel-Duellen: Zusatzkraft (Punkte/Sek.) direkt an
+  // der eigenen Zelle, linear abfallend bis 0 in der Korridor-Mitte.
+  // Dadurch drückt eine Verteidiger-Tentakel einen Angreifer mindestens bis
+  // zur Mitte zurück – bei gleich starken Zellen pendelt sich die Front dort ein.
+  clashHomefield: 4,
+
+  // --- Gegner-KI ---
+  aiInterval:  3.0,     // Wie oft die KI handelt (Sekunden)
+  aiMinUnits:  12       // KI fährt erst Tentakel aus, wenn die Quellzelle so viele Punkte hat
+};
+
+// Die fünf Zelltypen. attack/heal gelten PRO ÜBERTRAGENEM PUNKT und hängen
+// an der SENDENDEN Zelle; die Bunker-Verteidigung an der empfangenden.
+const CELL_TYPES = {
+  normal:   { label: "Normal",    prod: 1.0, max: 50,  attack: 1, heal: 1, radius: 26 },
+  healer:   { label: "Heiler",    prod: 1.0, max: 50,  attack: 1, heal: 2, radius: 26 },
+  attacker: { label: "Angreifer", prod: 1.0, max: 50,  attack: 2, heal: 1, radius: 25 },
+  factory:  { label: "Fabrik",    prod: 2.0, max: 25,  attack: 1, heal: 1, radius: 22 },
+  bunker:   { label: "Bunker",    prod: 0.5, max: 100, attack: 1, heal: 1, radius: 33 }
+};
+
+// Besitzer-Farben (müssen zu den CSS-Tokens oben passen)
+const OWNER_COLOR = { player: "#4fc1ff", enemy: "#ff5964", neutral: "#8593a1" };
+
+// Level-Definitionen: Koordinaten in einem virtuellen Spielfeld von 1000 x 640.
+// Es gibt KEINE festen Routen – jede Zelle kann jede andere anvisieren.
+// Entfernung kostet: lange Tentakel verbrauchen entsprechend viele Punkte.
+// sandbox: true  ->  Spieler steuert BEIDE Parteien, keine KI, kein Sieg/Niederlage.
+const LEVELS = [
+  {
+    name: "Erstkontakt",
+    desc: "3 gegen 3 mit umkämpfter neutraler Mitte. Die KI steuert Rot.",
+    tag: "Gegen die KI",
+    sandbox: false,
+    width: 1000, height: 640,
+    cells: [
+      { id: "A", type: "normal",   owner: "player",  x: 120, y: 500, units: 30 },
+      { id: "B", type: "factory",  owner: "player",  x: 250, y: 590, units: 12 },
+      { id: "C", type: "healer",   owner: "player",  x: 200, y: 360, units: 15 },
+      { id: "D", type: "attacker", owner: "neutral", x: 420, y: 420, units: 20 },
+      { id: "E", type: "bunker",   owner: "neutral", x: 500, y: 250, units: 25 },
+      { id: "F", type: "normal",   owner: "neutral", x: 620, y: 480, units: 12 },
+      { id: "G", type: "healer",   owner: "neutral", x: 580, y: 120, units: 15 },
+      { id: "H", type: "normal",   owner: "enemy",   x: 880, y: 180, units: 30 },
+      { id: "I", type: "factory",  owner: "enemy",   x: 770, y: 80,  units: 12 },
+      { id: "J", type: "attacker", owner: "enemy",   x: 720, y: 300, units: 15 }
+    ]
+  },
+  {
+    name: "Testlabor",
+    desc: "Alle fünf Zelltypen auf beiden Seiten. Du steuerst Blau UND Rot – keine KI, kein Spielende. Zum Ausprobieren der Mechaniken.",
+    tag: "Sandbox",
+    sandbox: true,
+    width: 1000, height: 640,
+    cells: [
+      { id: "L1", type: "normal",   owner: "player",  x: 150, y: 130, units: 30 },
+      { id: "L2", type: "healer",   owner: "player",  x: 110, y: 300, units: 30 },
+      { id: "L3", type: "attacker", owner: "player",  x: 150, y: 470, units: 30 },
+      { id: "L4", type: "factory",  owner: "player",  x: 270, y: 210, units: 15 },
+      { id: "L5", type: "bunker",   owner: "player",  x: 270, y: 400, units: 40 },
+      { id: "M1", type: "normal",   owner: "neutral", x: 500, y: 140, units: 15 },
+      { id: "M2", type: "bunker",   owner: "neutral", x: 500, y: 320, units: 25 },
+      { id: "M3", type: "normal",   owner: "neutral", x: 500, y: 500, units: 15 },
+      { id: "R1", type: "normal",   owner: "enemy",   x: 850, y: 130, units: 30 },
+      { id: "R2", type: "healer",   owner: "enemy",   x: 890, y: 300, units: 30 },
+      { id: "R3", type: "attacker", owner: "enemy",   x: 850, y: 470, units: 30 },
+      { id: "R4", type: "factory",  owner: "enemy",   x: 730, y: 210, units: 15 },
+      { id: "R5", type: "bunker",   owner: "enemy",   x: 730, y: 400, units: 40 }
+    ]
+  }
+];
+
+let LEVEL = LEVELS[0]; // aktuell aktives Level (wird über die Auswahl gesetzt)
+
+/* ======================================================================
+   SPIELZUSTAND
+   ====================================================================== */
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+let cells = [];
+let tentacles = [];   // aktive Tentakel und abgetrennte Stücke
+let stars = [];       // dekorativer Hintergrund
+
+let selected = null;    // ausgewählte eigene Zelle
+let dragSource = null;  // Zelle, von der aus gerade gezogen wird
+let hovered = null;
+let pointerWorld = { x: 0, y: 0 };
+
+let cutting = false;      // Spieler zieht gerade eine Schnittlinie
+let cutLast = null;       // letzter Punkt der Schnittlinie
+let cutStart = null;      // Startpunkt der Schnittlinie
+let cutArmed = false;     // Schnitt erst nach kurzer Zugstrecke "scharf"
+let cutTrail = [];        // Schnittspur (visuell, verblasst)
+let slashes = [];         // kurze Schnitt-Markierungen (auch für KI-Schnitte)
+
+let aiTimer = 0;
+let gameOver = false;
+let inMenu = true;   // Level-Auswahl sichtbar, Spiel pausiert
+let lastTime = 0;
+
+let view = { scale: 1, offX: 0, offY: 0 };
+
+/* ======================================================================
+   INITIALISIERUNG
+   ====================================================================== */
+
+function resetGame() {
+  cells = LEVEL.cells.map(c => ({ ...c, flash: 0, denyFlash: 0, boost: 0 }));
+  tentacles = [];
+  slashes = []; cutTrail = [];
+  selected = null; dragSource = null; hovered = null;
+  cutting = false; cutLast = null; cutStart = null; cutArmed = false;
+  aiTimer = 0; gameOver = false;
+  document.getElementById("overlay").classList.remove("show");
+}
+
+// Deterministische Pseudozufallszahlen für den Sternenhintergrund
+function makeStars() {
+  stars = [];
+  let seed = 42;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (let i = 0; i < 70; i++) {
+    stars.push({ x: rnd() * LEVEL.width, y: rnd() * LEVEL.height, r: 0.6 + rnd() * 1.3, a: 0.04 + rnd() * 0.1 });
+  }
+}
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(window.innerWidth * dpr);
+  canvas.height = Math.round(window.innerHeight * dpr);
+  canvas.style.width = window.innerWidth + "px";
+  canvas.style.height = window.innerHeight + "px";
+
+  const pad = 70;
+  const availW = window.innerWidth - 40;
+  const availH = window.innerHeight - pad * 2;
+  view.scale = Math.min(availW / LEVEL.width, availH / LEVEL.height);
+  view.offX = (window.innerWidth - LEVEL.width * view.scale) / 2;
+  view.offY = pad + (availH - LEVEL.height * view.scale) / 2;
+}
+window.addEventListener("resize", resize);
+
+/* ======================================================================
+   TENTAKEL-LOGIK
+   ======================================================================
+   Eine Tentakel ist ein Segment [tail, head] entlang der Linie von
+   Zellrand zu Zellrand. Die enthaltene "Masse" ist (head - tail) / lengthPerUnit.
+
+   Modi:
+     grow    – Spitze wächst zum Ziel, Wachstum kostet die Quellzelle Punkte
+     flow    – angedockt: überträgt kontinuierlich Punkte (Angriff/Heilung)
+     retract – zieht sich zur Quelle zurück, Masse fließt der Quelle wieder zu
+     free    – abgetrenntes Stück ohne Quelle: gleitet zum Ziel und gibt
+               seine Masse dort als Angriff/Heilung ab
+   ====================================================================== */
+
+function typeOf(cell) { return CELL_TYPES[cell.type]; }
+
+// Darf der Spieler diese Zelle befehligen? (im Testlabor beide Parteien)
+function controllable(cell) {
+  return cell.owner === "player" || (LEVEL.sandbox && cell.owner === "enemy");
+}
+
+function maxSlots(cell) {
+  return Math.min(CONFIG.slotMax,
+    CONFIG.slotBase + Math.floor(Math.floor(cell.units) / CONFIG.slotStep));
+}
+
+// Aktive (mit der Quelle verbundene) Tentakel einer Zelle
+function outgoing(cell) {
+  return tentacles.filter(t => !t.dead && t.src === cell && (t.mode === "grow" || t.mode === "flow"));
+}
+
+// Kann die Zelle Überschuss weiterleiten? (mind. eine aktive Tentakel)
+function hasActiveOut(cell) {
+  return tentacles.some(t => !t.dead && t.src === cell && (t.mode === "grow" || t.mode === "flow"));
+}
+
+// Punkte einer Zelle gutschreiben; was über das Maximum hinausgeht, wandert
+// in den Überschuss-Puffer (sofern die Zelle Tentakel zum Weiterleiten hat)
+function creditUnits(cell, amount) {
+  const room = typeOf(cell).max - cell.units;
+  if (amount <= room) {
+    cell.units += amount;
+  } else {
+    cell.units = typeOf(cell).max;
+    if (hasActiveOut(cell)) {
+      cell.boost = Math.min(CONFIG.overflowBuffer, cell.boost + (amount - room));
+    }
+  }
+}
+
+function makeTentacle(src, dst) {
+  const dx = dst.x - src.x, dy = dst.y - src.y;
+  const d = Math.hypot(dx, dy);
+  const ux = dx / d, uy = dy / d;
+  // Pfad von Zellrand zu Zellrand
+  const p0 = { x: src.x + ux * typeOf(src).radius, y: src.y + uy * typeOf(src).radius };
+  const p1 = { x: dst.x - ux * (typeOf(dst).radius + 3), y: dst.y - uy * (typeOf(dst).radius + 3) };
+  const len = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+  return {
+    src, dst,
+    owner: src.owner,
+    attack: typeOf(src).attack,  // Werte der sendenden Zelle einfrieren
+    heal: typeOf(src).heal,
+    p0, p1, ux, uy, len,
+    tail: 0, head: 0,
+    mode: "grow",
+    phase: Math.random() * 10,   // Versatz für die Wellen-Animation
+    boostGlow: 0,                // > 0, solange gerade Überschuss durchgeleitet wird (visuell)
+    clashGlow: 0,                // > 0, solange die Spitze im Duell steht (visuell)
+    pipeline: [],                // unterwegs befindliche Punkte-Pakete (siehe applyMass/update)
+    dead: false
+  };
+}
+
+function pointAt(t, L) {
+  return { x: t.p0.x + t.ux * L, y: t.p0.y + t.uy * L };
+}
+
+// Spieler-/KI-Befehl: Tentakel zu dst ausfahren – oder vorhandene einziehen (Toggle)
+function tryCommand(src, dst) {
+  const existing = tentacles.find(t => !t.dead && t.src === src && t.dst === dst &&
+    (t.mode === "grow" || t.mode === "flow"));
+  if (existing) { existing.mode = "retract"; return true; }
+
+  // Befreundete Zellen: immer nur EINE Verbindungsrichtung gleichzeitig.
+  // (Gegnerische Zellen dürfen aufeinander losgehen – die Tentakel treffen
+  // sich dann in der Mitte und ringen miteinander.)
+  if (dst.owner === src.owner) {
+    const back = tentacles.find(t => !t.dead && t.src === dst && t.dst === src &&
+      (t.mode === "grow" || t.mode === "flow"));
+    if (back) { src.denyFlash = 0.45; return false; }
+  }
+
+  if (outgoing(src).length >= maxSlots(src) || src.units < 2) {
+    src.denyFlash = 0.45; // rotes Aufblinken: kein Slot frei / zu wenige Punkte
+    return false;
+  }
+  tentacles.push(makeTentacle(src, dst));
+  src.flash = 0.3;
+  return true;
+}
+
+// Masse trifft auf die Zielzelle (kontinuierlich oder von freien Stücken)
+function applyMass(t, mass) {
+  const dst = t.dst;
+  if (mass <= 0) return;
+  if (dst.owner === t.owner) {
+    creditUnits(dst, mass * t.heal); // Überschuss wird ggf. weitergeleitet
+  } else {
+    let per = t.attack;
+    if (dst.type === "bunker") per = Math.max(0, per - CONFIG.bunkerDefense);
+    damageCell(dst, mass * per, t.owner);
+  }
+}
+
+// Schaden an einer Zelle anwenden. Fällt der Vorrat unter 0, wird die Zelle
+// SOFORT erobert – ihre noch ausgefahrenen Tentakel ziehen sich danach
+// automatisch ein und füllen den Vorrat für den NEUEN Besitzer auf
+// (siehe captureCell).
+function damageCell(cell, dmg, byOwner) {
+  cell.units -= dmg;
+  if (cell.units < 0) captureCell(cell, byOwner);
+}
+
+// Gegen-Tentakel zwischen denselben zwei Zellen (andere Besitzer, aktiv)
+function findOpposing(t) {
+  return tentacles.find(o => !o.dead && o !== t && o.src === t.dst && o.dst === t.src &&
+    o.owner !== t.owner && (o.mode === "grow" || o.mode === "flow")) || null;
+}
+
+// Position der gegnerischen Spitze, projiziert auf die eigene Achse
+function opposingTipL(t, o) {
+  const tip = pointAt(o, o.head);
+  return (tip.x - t.p0.x) * t.ux + (tip.y - t.p0.y) * t.uy;
+}
+
+// Nachschub für ein Tentakel-Duell: gedeckelt durch transferRate, gespeist
+// aus dem VORRAT der Quellzelle (Puffer zuerst). Duelle sind Abnutzungs-
+// kämpfe: wer besseren Nachschub hat – höhere Produktion, Heiler-
+// Verstärkung, größere Reserven – setzt sich durch. Beide Zähler sinken
+// dabei sichtbar ("Punkte gegeneinander schießen").
+function battleFeed(t, dt) {
+  const c = t.src;
+  const want = CONFIG.transferRate * dt;
+  const fromBoost = Math.min(c.boost, want);
+  const fromUnits = Math.min(Math.max(0, c.units), want - fromBoost);
+  c.boost -= fromBoost;
+  c.units -= fromUnits;
+  if (fromBoost > 0.0001) t.boostGlow = 0.35;
+  return fromBoost + fromUnits;
+}
+
+function captureCell(cell, newOwner) {
+  cell.owner = newOwner;
+  cell.units = Math.min(typeOf(cell).max, Math.max(0, -cell.units));
+  cell.boost = 0;
+  // Ausgefahrene Tentakel der eroberten Zelle ziehen sich automatisch ein.
+  // Ihre zurückfließende Masse landet in der Zelle – und zählt damit für
+  // den NEUEN Besitzer (die Beute des Eroberers).
+  for (const t of tentacles) {
+    if (!t.dead && t.src === cell && (t.mode === "grow" || t.mode === "flow")) {
+      t.mode = "retract";
+    }
+  }
+  if (selected === cell && newOwner !== "player") selected = null;
+}
+
+// Tentakel bei Länge L durchtrennen: hinteres Stück fließt zurück,
+// vorderes Stück fließt zum Ziel weiter.
+function cutTentacle(t, L) {
+  const margin = 6; // nicht unmittelbar an den Enden schneiden
+  if (t.dead || L < t.tail + margin || L > t.head - margin) return false;
+
+  // Vorderes Stück [L, head] wird ein freies Stück Richtung Ziel –
+  // es übernimmt bereits unterwegs befindliche Punkte-Pakete, die weiter
+  // auf ihr Ziel zufließen.
+  tentacles.push({ ...t, tail: L, head: t.head, mode: "free", dead: false });
+
+  // Hinteres Stück [tail, L]: bekommt eine eigene, leere Pipeline –
+  // sonst würden Pakete doppelt ausgeliefert (gleiche Array-Referenz).
+  t.head = L;
+  t.pipeline = [];
+  if (t.mode !== "free") t.mode = "retract"; // hing an der Quelle -> zurückziehen
+  return true;
+}
+
+// Schnittlinie (Wischen) gegen die Tentakel testen.
+// Es können NUR EIGENE Tentakel geschnitten werden – gegnerische sind tabu.
+function performCut(a, b, color) {
+  let hit = false;
+  for (const t of [...tentacles]) {
+    // nur befehligbare (im Testlabor: beide Parteien) Tentakel sind schneidbar
+    if (t.dead || t.head - t.tail < 8) continue;
+    if (!(t.owner === "player" || (LEVEL.sandbox && t.owner === "enemy"))) continue;
+    const q0 = pointAt(t, t.tail), q1 = pointAt(t, t.head);
+    const u = segIntersect(a, b, q0, q1);
+    if (u === null) continue;
+    const L = t.tail + (t.head - t.tail) * u;
+    if (cutTentacle(t, L)) {
+      hit = true;
+      const p = pointAt(t, L);
+      // kleine Schnitt-Markierung senkrecht zur Tentakel
+      slashes.push({
+        x1: p.x - t.uy * 20, y1: p.y + t.ux * 20,
+        x2: p.x + t.uy * 20, y2: p.y - t.ux * 20,
+        age: 0, color
+      });
+    }
+  }
+  return hit;
+}
+
+// Schnittpunkt zweier Strecken; liefert den Parameter u entlang q0->q1 (oder null)
+function segIntersect(p0, p1, q0, q1) {
+  const rX = p1.x - p0.x, rY = p1.y - p0.y;
+  const sX = q1.x - q0.x, sY = q1.y - q0.y;
+  const den = rX * sY - rY * sX;
+  if (Math.abs(den) < 1e-9) return null;
+  const qpX = q0.x - p0.x, qpY = q0.y - p0.y;
+  const tt = (qpX * sY - qpY * sX) / den;  // entlang p
+  const uu = (qpX * rY - qpY * rX) / den;  // entlang q
+  return (tt >= 0 && tt <= 1 && uu >= 0 && uu <= 1) ? uu : null;
+}
+
+/* ======================================================================
+   SPIEL-UPDATE
+   ====================================================================== */
+
+function update(dt) {
+  if (inMenu) return; // Level-Auswahl offen: Spiel pausiert
+
+  // Produktion – bei vollen Zellen wandert der Überschuss in den Puffer
+  for (const c of cells) {
+    if (c.owner !== "neutral" || CONFIG.neutralProduces) {
+      creditUnits(c, typeOf(c).prod * dt);
+    }
+    if (c.flash > 0) c.flash -= dt;
+    if (c.denyFlash > 0) c.denyFlash -= dt;
+  }
+
+  // Tentakel-Duelle erkennen: gegnerische Tentakel zwischen denselben zwei
+  // Zellen laufen im selben Korridor. Berühren sich ihre Spitzen, ringen sie
+  // miteinander, statt aneinander vorbeizuwachsen.
+  for (const t of tentacles) { t._opp = null; t._clash = null; }
+  for (const t of tentacles) {
+    if (t.dead || (t.mode !== "grow" && t.mode !== "flow") || t._opp) continue;
+    const o = findOpposing(t);
+    if (!o) continue;
+    t._opp = o; o._opp = t;
+    if (opposingTipL(t, o) - t.head <= 3) { t._clash = o; o._clash = t; }
+  }
+
+  // Überschuss-Verteilung vorbereiten: Puffer und Produktions-Budget einer
+  // Zelle werden gleichmäßig auf ihre aktiven Kanäle aufgeteilt
+  // (angedockte Tentakel + Tentakel im Duell)
+  for (const c of cells) c._flowOut = 0;
+  for (const t of tentacles) {
+    if (!t.dead && (t.mode === "flow" || t._clash)) t.src._flowOut++;
+    if (t.boostGlow > 0) t.boostGlow -= dt;
+    if (t.clashGlow > 0) t.clashGlow -= dt;
+  }
+  for (const c of cells) {
+    c._boostShare = c._flowOut > 0 ? c.boost / c._flowOut : 0;
+    // Produktions-Budget für den GRUNDFLUSS: eine Zelle darf über ihre
+    // Tentakel nie mehr fest angesammelte Punkte verlieren, als sie in
+    // diesem Tick produziert – die Produktion wird gleichmäßig auf alle
+    // angedockten Tentakel aufgeteilt. Der Vorrat bleibt dadurch stabil;
+    // nur das Ausfahren (grow) und der Überschuss-Puffer dürfen ihn senken.
+    c._flowBudget = c._flowOut > 0 ? (typeOf(c).prod * dt) / c._flowOut : 0;
+  }
+
+  // Duelle austragen: beide Seiten speisen Kraft aus Produktion und
+  // Überschuss-Puffer; die stärkere Seite (Angriffswert zählt!) drückt die
+  // Spitze der schwächeren zurück. Gleichstand = Patt an der Front.
+  const fought = new Set();
+  for (const t of tentacles) {
+    if (t.dead || !t._clash || fought.has(t)) continue;
+    const o = t._clash;
+    if (o.dead || fought.has(o)) continue;
+    fought.add(t); fought.add(o);
+
+    // Kraft beider Seiten: Nachschub × Angriffswert, plus Heimvorteil.
+    // Der Heimvorteil drückt die Front Richtung Korridor-MITTE – nahe der
+    // eigenen Zelle kämpft es sich leichter.
+    const bias = CONFIG.clashHomefield * (0.5 - t.head / t.len) * dt;
+    const net = battleFeed(t, dt) * t.attack - battleFeed(o, dt) * o.attack + bias;
+
+    if (net !== 0) {
+      const winner = net > 0 ? t : o;
+      const loser  = net > 0 ? o : t;
+      // Der Gewinner rückt aktiv nach und bezahlt den gewonnenen Boden wie
+      // normales Wachstum – ohne Substanz kein Vormarsch
+      let push = Math.min(
+        Math.abs(net) * CONFIG.lengthPerUnit,
+        Math.max(0, winner.src.units + winner.src.boost) * CONFIG.lengthPerUnit,
+        loser.head - loser.tail,
+        winner.len - winner.head);
+      if (push > 0) {
+        const cost = push / CONFIG.lengthPerUnit;
+        const fromBoost = Math.min(winner.src.boost, cost);
+        winner.src.boost -= fromBoost;
+        winner.src.units -= (cost - fromBoost);
+        winner.head += push;
+        loser.head = Math.max(loser.tail, loser.head - push);
+        if (loser.mode === "flow") loser.mode = "grow"; // vom Ziel weggedrückt
+        if (loser.head - loser.tail < 0.5) loser.dead = true; // Tentakel zerstört
+      }
+    }
+    t.clashGlow = o.clashGlow = 0.25;
+  }
+
+  // Pipeline-Auslieferung: Punkte-Pakete, die zuvor auf den Weg geschickt
+  // wurden, treffen nach ihrer Laufzeit an der Zielzelle ein und wirken
+  // erst DANN (Heilung/Schaden) – unabhängig vom aktuellen Modus der
+  // Tentakel, damit bereits unterwegs befindliche Pakete auch nach einem
+  // Einziehen/Durchschneiden noch ankommen.
+  for (const t of tentacles) {
+    if (!t.pipeline.length) continue;
+    for (const p of t.pipeline) p.remaining -= dt;
+    while (t.pipeline.length && t.pipeline[0].remaining <= 0) {
+      applyMass(t, t.pipeline.shift().amount);
+    }
+  }
+
+  // Tentakel
+  for (const t of tentacles) {
+    if (t.dead) continue;
+
+    if (t.mode === "grow") {
+      if (!t._clash) {
+        // Wachstum kostet Punkte; Überschuss-Puffer wird zuerst angezapft.
+        // Vor einer gegnerischen Spitze wird gestoppt (dort beginnt das Duell).
+        let limit = t.len - t.head;
+        if (t._opp) limit = Math.min(limit, Math.max(0, opposingTipL(t, t._opp) - t.head - 2));
+        const want = Math.min(CONFIG.tentacleSpeed * dt, limit);
+        const cost = want / CONFIG.lengthPerUnit;
+        if (want > 0 && t.src.units + t.src.boost >= cost) {
+          const fromBoost = Math.min(t.src.boost, cost);
+          t.src.boost -= fromBoost;
+          t.src.units -= (cost - fromBoost);
+          t.head += want;
+        }
+        if (t.head >= t.len - 0.001) t.mode = "flow"; // angedockt!
+      }
+
+    } else if (t.mode === "flow" && t._clash) {
+      // Angedockt, aber im Duell: alle Energie geht in den Kampf (kein Transfer)
+
+    } else if (t.mode === "flow") {
+      // Kontinuierliche Übertragung, sowohl bei HEILUNG als auch bei einem
+      // unbeantworteten ANGRIFF: gedeckelt durch die eigene Produktion
+      // (+ Überschuss-Puffer) – der Vorrat einer Zelle sinkt dadurch nicht.
+      // Nur in einem echten Tentakel-Duell (siehe oben, battleFeed) wird
+      // tatsächlich Vorrat verkämpft; einseitiges Angreifen/Unterstützen
+      // kostet nie mehr als die frische Produktion.
+      // Die übertragene Masse wird NICHT sofort beim Ziel wirksam, sondern
+      // fließt sichtbar die Tentakel entlang und wirkt erst beim Eintreffen
+      // (siehe Pipeline-Auslieferung weiter unten).
+      const dst = t.dst;
+      const want = CONFIG.transferRate * dt;
+      const hostile = dst.owner !== t.owner;
+      let per = t.attack;
+      if (hostile && dst.type === "bunker") per = Math.max(0, per - CONFIG.bunkerDefense);
+
+      if (!hostile || per > 0) { // Bunker kann Angriffe wirkungslos machen -> Fluss pausiert
+        const base = Math.min(want, t.src._flowBudget, Math.max(0, t.src.units));
+        // Puffer-Durchleitung ratenbegrenzt (gleichmäßiger Strom statt
+        // schlagartiger Entladung des ganzen Puffers in einem Tick)
+        const share = Math.min(t.src.boost, t.src._boostShare, want);
+        let total = base + share;
+
+        if (!hostile && !hasActiveOut(dst)) {
+          // Heilen: Ziel voll und ohne eigene Tentakel? Dann nur bis zum
+          // Maximum pumpen (nichts verschwenden). Kann das Ziel weiterleiten,
+          // fließt der Rest in dessen Überschuss-Puffer.
+          const room = typeOf(dst).max - dst.units;
+          total = Math.min(total, room / t.heal);
+        }
+
+        if (total > 0) {
+          const fromBoost = Math.min(share, total);
+          t.src.boost -= fromBoost;
+          t.src.units -= (total - fromBoost);
+          if (fromBoost > 0.0001) t.boostGlow = 0.35;
+          // Laufzeit bis zum Ziel = Länge der Tentakel / Fluss-Geschwindigkeit
+          // (dieselbe Geschwindigkeit, mit der die Fluss-Punkte animiert werden)
+          t.pipeline.push({ amount: total, remaining: t.len / CONFIG.flowDotSpeed });
+        }
+      }
+
+    } else if (t.mode === "retract") {
+      // Einziehen: Masse fließt zur Quelle zurück (Überschuss wird weitergeleitet)
+      const d = Math.min(CONFIG.retractSpeed * dt, t.head - t.tail);
+      t.head -= d;
+      creditUnits(t.src, d / CONFIG.lengthPerUnit);
+      if (t.head - t.tail < 0.5) t.dead = true;
+
+    } else if (t.mode === "free") {
+      // Abgetrenntes Stück: gleitet zum Ziel, dann wird die Masse abgegeben
+      const sp = CONFIG.retractSpeed * dt;
+      if (t.head < t.len) {
+        const d = Math.min(sp, t.len - t.head);
+        t.head += d; t.tail += d;
+      } else {
+        const d = Math.min(sp, t.len - t.tail);
+        t.tail += d;
+        applyMass(t, d / CONFIG.lengthPerUnit);
+        if (t.len - t.tail < 0.5) t.dead = true;
+      }
+    }
+  }
+  // Tentakel mit noch ausstehender Pipeline erst entfernen, wenn auch die
+  // letzten unterwegs befindlichen Punkte-Pakete ausgeliefert wurden.
+  tentacles = tentacles.filter(t => !t.dead || t.pipeline.length);
+
+  // Effekte altern lassen
+  for (const s of slashes) s.age += dt;
+  slashes = slashes.filter(s => s.age < 0.8);
+  const nowMs = performance.now();
+  cutTrail = cutTrail.filter(p => nowMs - p.t < 350);
+
+  // Gegner-KI takten (im Testlabor steuert der Spieler beide Seiten selbst)
+  if (!gameOver && !LEVEL.sandbox) {
+    aiTimer += dt;
+    if (aiTimer >= CONFIG.aiInterval) {
+      aiTimer = 0;
+      aiThink();
+    }
+  }
+
+  checkVictory();
+}
+
+/* ======================================================================
+   GEGNER-KI
+   ====================================================================== */
+
+function effDamagePerUnit(srcCell, targetCell) {
+  let dmg = typeOf(srcCell).attack;
+  if (targetCell.type === "bunker") dmg = Math.max(0, dmg - CONFIG.bunkerDefense);
+  return dmg;
+}
+
+function aiThink() {
+  // 1) Stärkste Zelle mit freiem Slot fährt eine Tentakel aus:
+  //    Ziel = schwächste, möglichst nahe fremde Zelle, der sie schaden kann
+  const sources = cells
+    .filter(c => c.owner === "enemy" && Math.floor(c.units) >= CONFIG.aiMinUnits)
+    .sort((a, b) => b.units - a.units);
+
+  for (const src of sources) {
+    const out = outgoing(src);
+    if (out.length >= maxSlots(src)) continue;
+
+    let targets = cells.filter(c =>
+      c !== src && c.owner !== "enemy" &&
+      !out.some(t => t.dst === c) &&
+      effDamagePerUnit(src, c) > 0);
+    if (targets.length) {
+      // Bewertung: wenige Punkte und kurze Distanz bevorzugen
+      targets.sort((a, b) =>
+        (a.units + Math.hypot(a.x - src.x, a.y - src.y) * 0.05) -
+        (b.units + Math.hypot(b.x - src.x, b.y - src.y) * 0.05));
+      tryCommand(src, targets[0]);
+      return;
+    }
+  }
+
+  // 2) Fallback: stärkste Zelle verstärkt die schwächste eigene Zelle
+  for (const src of sources) {
+    const out = outgoing(src);
+    if (out.length >= maxSlots(src)) continue;
+    const own = cells.filter(c =>
+      c !== src && c.owner === "enemy" && c.units < src.units - 8 &&
+      !out.some(t => t.dst === c) &&
+      // Einbahn-Regel: keine Gegen-Tentakel zu einer Zelle, die schon zu uns verbindet
+      !tentacles.some(t => !t.dead && t.src === c && t.dst === src &&
+        (t.mode === "grow" || t.mode === "flow")));
+    if (own.length) {
+      own.sort((a, b) => a.units - b.units);
+      tryCommand(src, own[0]);
+      return;
+    }
+  }
+}
+
+/* ======================================================================
+   SIEG / NIEDERLAGE
+   ====================================================================== */
+
+function checkVictory() {
+  if (gameOver || LEVEL.sandbox) return; // im Testlabor gibt es kein Spielende
+  // Eine Seite lebt, solange sie Zellen hat oder noch Tentakel-Masse unterwegs ist
+  const alive = owner =>
+    cells.some(c => c.owner === owner) ||
+    tentacles.some(t => !t.dead && t.owner === owner && t.head - t.tail > 1);
+
+  const playerAlive = alive("player");
+  const enemyAlive = alive("enemy");
+  if (playerAlive && enemyAlive) return;
+
+  gameOver = true;
+  const title = document.getElementById("overlayTitle");
+  const text = document.getElementById("overlayText");
+  if (playerAlive) {
+    title.textContent = "Sieg";
+    title.style.color = OWNER_COLOR.player;
+    text.textContent = "Alle gegnerischen Zellen wurden erobert.";
+  } else {
+    title.textContent = "Niederlage";
+    title.style.color = OWNER_COLOR.enemy;
+    text.textContent = "Deine letzte Zelle ist gefallen.";
+  }
+  document.getElementById("overlay").classList.add("show");
+}
+
+/* ======================================================================
+   EINGABE (Maus & Touch über Pointer-Events)
+   ====================================================================== */
+
+function toWorld(e) {
+  return {
+    x: (e.clientX - view.offX) / view.scale,
+    y: (e.clientY - view.offY) / view.scale
+  };
+}
+
+function pickCell(w) {
+  for (const c of cells) {
+    const r = typeOf(c).radius + 12;
+    if (Math.hypot(w.x - c.x, w.y - c.y) <= r) return c;
+  }
+  return null;
+}
+
+canvas.addEventListener("pointerdown", e => {
+  if (gameOver || inMenu) return;
+  const w = toWorld(e);
+  pointerWorld = w;
+  const cell = pickCell(w);
+
+  // Klick-Klick: Auswahl vorhanden + anderes Ziel angeklickt -> Tentakel-Befehl
+  if (selected && cell && cell !== selected) {
+    tryCommand(selected, cell);
+    selected = null;
+    return;
+  }
+  if (cell && controllable(cell)) {
+    // Eigene Zelle: auswählen und ggf. Drag starten
+    selected = cell;
+    dragSource = cell;
+    canvas.setPointerCapture(e.pointerId);
+  } else if (!cell) {
+    // Freie Fläche: Schnittmodus starten (scharf erst nach kurzer Zugstrecke,
+    // damit ein einfacher Klick mit Wacklern nichts zerschneidet)
+    selected = null;
+    cutting = true;
+    cutStart = w;
+    cutArmed = false;
+    cutLast = w;
+    cutTrail.push({ x: w.x, y: w.y, t: performance.now() });
+    canvas.setPointerCapture(e.pointerId);
+  } else {
+    selected = null;
+  }
+});
+
+canvas.addEventListener("pointermove", e => {
+  const w = toWorld(e);
+  pointerWorld = w;
+  hovered = pickCell(w);
+  canvas.style.cursor = hovered ? "pointer" : "crosshair";
+
+  if (cutting && cutLast && !gameOver) {
+    if (!cutArmed && Math.hypot(w.x - cutStart.x, w.y - cutStart.y) > 12) cutArmed = true;
+    if (cutArmed) performCut(cutLast, w, "#eaf2fa");
+    cutLast = w;
+    cutTrail.push({ x: w.x, y: w.y, t: performance.now() });
+  }
+});
+
+canvas.addEventListener("pointerup", e => {
+  if (dragSource) {
+    const cell = pickCell(toWorld(e));
+    if (cell && cell !== dragSource) {
+      tryCommand(dragSource, cell);
+      selected = null;
+    }
+    dragSource = null;
+  }
+  cutting = false;
+  cutLast = null;
+  cutArmed = false;
+});
+
+canvas.addEventListener("pointercancel", () => { dragSource = null; cutting = false; cutLast = null; cutArmed = false; });
+canvas.addEventListener("contextmenu", e => { e.preventDefault(); selected = null; dragSource = null; });
+window.addEventListener("keydown", e => { if (e.key === "Escape") { selected = null; dragSource = null; } });
+
+document.getElementById("restart").addEventListener("click", resetGame);
+document.getElementById("overlayRestart").addEventListener("click", resetGame);
+document.getElementById("btnLevels").addEventListener("click", showLevelMenu);
+
+/* ======================================================================
+   LEVEL-AUSWAHL
+   ====================================================================== */
+
+function showLevelMenu() {
+  inMenu = true;
+  document.getElementById("overlay").classList.remove("show");
+  document.getElementById("levelSelect").classList.remove("hidden");
+}
+
+function startLevel(index) {
+  LEVEL = LEVELS[index];
+  makeStars();
+  resize();
+  resetGame();
+  // Hinweiszeile ans Level anpassen
+  const base = "Von eigener Zelle zu einem Ziel ziehen: Tentakel ausfahren (kostet Punkte) · " +
+    "Ziel erneut anklicken: Tentakel einziehen · Auf freier Fläche über eine EIGENE Tentakel wischen: durchschneiden";
+  document.getElementById("hint").textContent =
+    (LEVEL.sandbox ? "TESTLABOR – du steuerst Blau UND Rot. " : "") + base;
+  inMenu = false;
+  document.getElementById("levelSelect").classList.add("hidden");
+}
+
+function buildLevelMenu() {
+  const wrap = document.getElementById("levelCards");
+  LEVELS.forEach((lv, i) => {
+    const card = document.createElement("button");
+    card.className = "level-card";
+    card.type = "button";
+    card.innerHTML = `<span class="tag">${lv.tag}</span><h3>${lv.name}</h3><p>${lv.desc}</p>`;
+    card.addEventListener("click", () => startLevel(i));
+    wrap.appendChild(card);
+  });
+}
+
+/* ======================================================================
+   RENDERING
+   ====================================================================== */
+
+function hexToRgba(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+// Umriss eines Zelltyps als Pfad (für Füllung UND Kontur)
+function shapePath(c2, type, x, y, r) {
+  c2.beginPath();
+  if (type === "bunker") {
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+      const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+      i === 0 ? c2.moveTo(px, py) : c2.lineTo(px, py);
+    }
+    c2.closePath();
+  } else if (type === "attacker") {
+    const spikes = 10;
+    for (let i = 0; i < spikes * 2; i++) {
+      const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+      const rr = (i % 2 === 0) ? r * 1.16 : r * 0.86;
+      const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
+      i === 0 ? c2.moveTo(px, py) : c2.lineTo(px, py);
+    }
+    c2.closePath();
+  } else if (type === "factory") {
+    const teeth = 8, ri = r * 0.8;
+    const step = (Math.PI * 2) / teeth;
+    const w = step * 0.27;
+    for (let i = 0; i < teeth; i++) {
+      const a = i * step;
+      c2.arc(x, y, r, a - w, a + w);
+      c2.arc(x, y, ri, a + w, a + step - w);
+    }
+    c2.closePath();
+  } else {
+    c2.arc(x, y, r, 0, Math.PI * 2);
+  }
+}
+
+function drawHealerBadge(c2, x, y, r, color) {
+  const bx = x, by = y - r, br = 7;
+  c2.beginPath();
+  c2.arc(bx, by, br, 0, Math.PI * 2);
+  c2.fillStyle = "#0a111c";
+  c2.fill();
+  c2.strokeStyle = color;
+  c2.lineWidth = 1.5;
+  c2.stroke();
+  c2.beginPath();
+  c2.moveTo(bx - 3.5, by); c2.lineTo(bx + 3.5, by);
+  c2.moveTo(bx, by - 3.5); c2.lineTo(bx, by + 3.5);
+  c2.stroke();
+}
+
+function drawCellShape(c2, type, x, y, r, color, glow) {
+  c2.save();
+  if (glow) { c2.shadowColor = color; c2.shadowBlur = 16; }
+  shapePath(c2, type, x, y, r);
+  const grad = c2.createRadialGradient(x, y, r * 0.2, x, y, r);
+  grad.addColorStop(0, "rgba(16,26,42,.95)");
+  grad.addColorStop(1, hexToRgba(color, 0.22));
+  c2.fillStyle = grad;
+  c2.fill();
+  c2.strokeStyle = color;
+  c2.lineWidth = 2.5;
+  c2.stroke();
+  c2.restore();
+  if (type === "bunker") {
+    shapePath(c2, type, x, y, r - 5);
+    c2.strokeStyle = hexToRgba(color, 0.5);
+    c2.lineWidth = 1.5;
+    c2.stroke();
+  }
+  if (type === "healer") drawHealerBadge(c2, x, y, r, color);
+}
+
+// Tentakel als leicht wellige Linie mit Spitze und Fluss-Punkten
+function drawTentacle(t, now) {
+  const seg = t.head - t.tail;
+  if (seg < 1) return;
+  const color = OWNER_COLOR[t.owner];
+  const nx = -t.uy, ny = t.ux; // senkrecht zur Flugrichtung
+
+  // Wellenversatz: an den Enden der GESAMT-Linie verankert
+  const wob = L => reducedMotion ? 0 :
+    Math.sin(L * 0.045 + now / 300 + t.phase) * 5 * Math.sin(Math.PI * L / t.len);
+
+  ctx.save();
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 6;
+  ctx.strokeStyle = hexToRgba(color, 0.85);
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  const steps = Math.max(6, Math.round(seg / 12));
+  for (let i = 0; i <= steps; i++) {
+    const L = t.tail + seg * (i / steps);
+    const o = wob(L);
+    const px = t.p0.x + t.ux * L + nx * o;
+    const py = t.p0.y + t.uy * L + ny * o;
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  // Spitze (Wachstums- bzw. Vorderende)
+  const ho = wob(t.head);
+  const tipX = t.p0.x + t.ux * t.head + nx * ho;
+  const tipY = t.p0.y + t.uy * t.head + ny * ho;
+  ctx.beginPath();
+  ctx.arc(tipX, tipY, 4.2, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.restore();
+
+  // Duell-Funken: weiß glühende Spitze, solange zwei Tentakel ringen
+  if (t.clashGlow > 0) {
+    const a = Math.min(1, t.clashGlow / 0.25);
+    const flicker = reducedMotion ? 1 : 0.75 + 0.25 * Math.sin(now / 30 + t.phase * 7);
+    ctx.save();
+    ctx.shadowColor = "#ffffff";
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.arc(tipX, tipY, (3 + 3 * a) * flicker, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${0.85 * a})`;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Fluss-Punkte: vorwärts bei flow/free, rückwärts bei retract.
+  // Auch im DUELL (clashGlow) strömen Punkte sichtbar zur Front.
+  // Wird gerade Überschuss durchgeleitet, fließt ein zweiter, dichterer Strom.
+  if (!reducedMotion && (t.mode === "flow" || t.mode === "retract" || t.mode === "free" || t.clashGlow > 0)) {
+    const dir = t.mode === "retract" ? -1 : 1;
+    const boosted = t.boostGlow > 0;
+    const spacing = 26;
+    const shift = (now / 1000 * CONFIG.flowDotSpeed * (boosted ? 1.5 : 1)) % spacing;
+    ctx.fillStyle = hexToRgba("#ffffff", boosted ? 0.95 : 0.8);
+    for (let L = t.tail + (dir === 1 ? shift : spacing - shift); L < t.head; L += spacing) {
+      const o = wob(L);
+      ctx.beginPath();
+      ctx.arc(t.p0.x + t.ux * L + nx * o, t.p0.y + t.uy * L + ny * o, boosted ? 2.1 : 1.7, 0, Math.PI * 2);
+      ctx.fill();
+      if (boosted) { // versetzter Zweitstrom als "Verstärkt"-Signal
+        const L2 = L + spacing / 2;
+        if (L2 < t.head) {
+          const o2 = wob(L2);
+          ctx.beginPath();
+          ctx.arc(t.p0.x + t.ux * L2 + nx * o2, t.p0.y + t.uy * L2 + ny * o2, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+}
+
+function draw(now) {
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+  // Hintergrund-Vignette
+  const vg = ctx.createRadialGradient(
+    window.innerWidth / 2, window.innerHeight / 2, 100,
+    window.innerWidth / 2, window.innerHeight / 2, Math.max(window.innerWidth, window.innerHeight) * 0.7
+  );
+  vg.addColorStop(0, "#0d1626");
+  vg.addColorStop(1, "#080e18");
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+  // In Weltkoordinaten wechseln
+  ctx.setTransform(view.scale * dpr, 0, 0, view.scale * dpr, view.offX * dpr, view.offY * dpr);
+
+  // Dekorative Hintergrundpunkte
+  for (const s of stars) {
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(160,190,220,${s.a})`;
+    ctx.fill();
+  }
+
+  // Tentakel (unter den Zellen)
+  for (const t of tentacles) drawTentacle(t, now);
+
+  // Drag-Vorschau: gestrichelte Linie + Kosten (Farbe = Besitzer der Quelle)
+  if (dragSource) {
+    let tx = pointerWorld.x, ty = pointerWorld.y, snap = false;
+    if (hovered && hovered !== dragSource) { tx = hovered.x; ty = hovered.y; snap = true; }
+    ctx.save();
+    ctx.setLineDash([6, 6]);
+    ctx.lineWidth = snap ? 3 : 2;
+    ctx.strokeStyle = hexToRgba(OWNER_COLOR[dragSource.owner], snap ? 0.9 : 0.5);
+    ctx.beginPath();
+    ctx.moveTo(dragSource.x, dragSource.y);
+    ctx.lineTo(tx, ty);
+    ctx.stroke();
+    ctx.restore();
+
+    // Voraussichtliche Wachstumskosten anzeigen
+    const d = Math.hypot(tx - dragSource.x, ty - dragSource.y) - typeOf(dragSource).radius
+      - (snap ? typeOf(hovered).radius : 0);
+    if (d > 20) {
+      const cost = Math.ceil(d / CONFIG.lengthPerUnit);
+      ctx.font = '600 13px "Segoe UI", system-ui, sans-serif';
+      ctx.textAlign = "center";
+      ctx.fillStyle = hexToRgba("#eaf2fa", 0.9);
+      ctx.fillText(`−${cost}`, (dragSource.x + tx) / 2, (dragSource.y + ty) / 2 - 10);
+    }
+  }
+
+  // Schnittspur des Spielers (verblassend)
+  const nowMs = performance.now();
+  if (cutTrail.length > 1) {
+    ctx.save();
+    ctx.lineCap = "round";
+    for (let i = 1; i < cutTrail.length; i++) {
+      const a = 1 - (nowMs - cutTrail[i].t) / 350;
+      if (a <= 0) continue;
+      ctx.strokeStyle = `rgba(234,242,250,${a * 0.7})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cutTrail[i - 1].x, cutTrail[i - 1].y);
+      ctx.lineTo(cutTrail[i].x, cutTrail[i].y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Schnitt-Markierungen: Strich + expandierender Ring, damit Schnitte
+  // (besonders die der KI!) klar als Aktion erkennbar sind
+  for (const s of slashes) {
+    const a = Math.max(0, 1 - s.age / 0.8);
+    ctx.strokeStyle = hexToRgba(s.color, a);
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(s.x1, s.y1);
+    ctx.lineTo(s.x2, s.y2);
+    ctx.stroke();
+    const mx = (s.x1 + s.x2) / 2, my = (s.y1 + s.y2) / 2;
+    ctx.beginPath();
+    ctx.arc(mx, my, 6 + s.age * 50, 0, Math.PI * 2);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = hexToRgba(s.color, a * 0.6);
+    ctx.stroke();
+  }
+
+  // Zellen
+  for (const c of cells) {
+    const t = typeOf(c);
+    const color = OWNER_COLOR[c.owner];
+
+    drawCellShape(ctx, c.type, c.x, c.y, t.radius, color, true);
+
+    // Füllstands-Ring (Punkte / Maximum)
+    const frac = Math.max(0, Math.min(1, c.units / t.max));
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, t.radius + 7, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+    ctx.strokeStyle = hexToRgba(color, 0.55);
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Auswahl-Ring
+    if (c === selected) {
+      ctx.save();
+      ctx.setLineDash([5, 5]);
+      if (!reducedMotion) ctx.lineDashOffset = -(now / 40) % 10;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, t.radius + 13, 0, Math.PI * 2);
+      ctx.strokeStyle = color; // Auswahlring in Besitzerfarbe (Testlabor: auch Rot)
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Sende-Blitz (kurz aufleuchtender Ring beim Ausfahren)
+    if (c.flash > 0) {
+      const k = 1 - c.flash / 0.3;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, t.radius + 8 + k * 14, 0, Math.PI * 2);
+      ctx.strokeStyle = hexToRgba(color, 0.5 * (1 - k));
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    // Abgelehnt-Blitz (kein Slot frei / zu wenige Punkte)
+    if (c.denyFlash > 0) {
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, t.radius + 10, 0, Math.PI * 2);
+      ctx.strokeStyle = hexToRgba("#ff5964", Math.min(1, c.denyFlash * 2.2));
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    // Punkte-Zähler
+    ctx.font = `700 ${Math.round(t.radius * 0.62)}px "Segoe UI", system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#eaf2fa";
+    // nie negativ anzeigen (während des Not-Einzugs kann der Wert intern < 0 sein)
+    ctx.fillText(String(Math.max(0, Math.floor(c.units))), c.x, c.y + 1);
+
+    // Tentakel-Slots als kleine Punkte unter befehligbaren Zellen
+    if (controllable(c)) {
+      const total = maxSlots(c);
+      const used = outgoing(c).length;
+      const y = c.y + t.radius + 16;
+      const x0 = c.x - ((total - 1) * 9) / 2;
+      for (let i = 0; i < total; i++) {
+        ctx.beginPath();
+        ctx.arc(x0 + i * 9, y, 2.6, 0, Math.PI * 2);
+        if (i < used) {
+          ctx.fillStyle = color;
+          ctx.fill();
+        } else {
+          ctx.strokeStyle = hexToRgba(color, 0.45);
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+      }
+    }
+  }
+}
+
+/* ======================================================================
+   HUD & LEGENDE
+   ====================================================================== */
+
+function updateHud() {
+  document.getElementById("countPlayer").textContent = cells.filter(c => c.owner === "player").length;
+  document.getElementById("countEnemy").textContent = cells.filter(c => c.owner === "enemy").length;
+}
+
+function buildLegend() {
+  const legend = document.getElementById("legend");
+  const dpr = window.devicePixelRatio || 1;
+  const info = {
+    normal:   "Produktion 1/s · Max 50",
+    healer:   "Heilung +2",
+    attacker: "Angriff −2",
+    factory:  "Produktion 2/s · Max 25",
+    bunker:   "Max 100 · Schaden −1 pro Punkt"
+  };
+  for (const key of Object.keys(CELL_TYPES)) {
+    const item = document.createElement("div");
+    item.className = "legend-item";
+    const cv = document.createElement("canvas");
+    const size = 30;
+    cv.width = size * dpr; cv.height = size * dpr;
+    cv.style.width = size + "px"; cv.style.height = size + "px";
+    const c2 = cv.getContext("2d");
+    c2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawCellShape(c2, key, size / 2, size / 2 + (key === "healer" ? 2 : 0), key === "healer" ? 8.5 : 10, "#8593a1", false);
+    item.appendChild(cv);
+    const label = document.createElement("span");
+    label.innerHTML = `<strong style="color:var(--text)">${CELL_TYPES[key].label}</strong> &middot; ${info[key]}`;
+    item.appendChild(label);
+    legend.appendChild(item);
+  }
+}
+
+/* ======================================================================
+   HAUPTSCHLEIFE
+   ====================================================================== */
+
+function frame(now) {
+  const dt = Math.min(0.05, (now - lastTime) / 1000 || 0);
+  lastTime = now;
+  update(dt);
+  draw(now);
+  updateHud();
+  requestAnimationFrame(frame);
+}
+
+makeStars();
+resize();
+buildLegend();
+buildLevelMenu();
+resetGame();      // Hintergrund hinter der Level-Auswahl
+showLevelMenu();  // Start in der Level-Auswahl
+requestAnimationFrame(frame);
+</script>
