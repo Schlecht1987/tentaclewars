@@ -9,6 +9,8 @@
 LEVEL = generateCampaignLevel(1);
 currentRef = { kind: "campaign", n: 1 };
 
+for (const el of document.querySelectorAll(".app-version")) el.textContent = "v" + APP_VERSION;
+
 makeStars();
 resize();
 window.addEventListener("resize", resize);
