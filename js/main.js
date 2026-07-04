@@ -12,6 +12,10 @@ currentRef = { kind: "campaign", n: 1 };
 makeStars();
 resize();
 window.addEventListener("resize", resize);
+// Fallback für Geräte, bei denen "resize" bei einer Drehung verspätet oder
+// gar nicht feuert (bekannte iOS-Safari-Eigenart) – betrifft direkt die
+// Hochformat-Drehung des UI (siehe #appRoot in styles.css).
+window.addEventListener("orientationchange", resize);
 
 buildLegend();
 initUi();

@@ -8,6 +8,15 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+const portraitQuery = window.matchMedia("(orientation: portrait)");
+
+// Hochformat am Touch-Gerät: #appRoot wird dann per CSS um 90° gedreht
+// (siehe styles.css), damit das querformatige Spielfeld den Bildschirm
+// ausfüllt statt winzig verkleinert zu werden. resize()/toWorld() rechnen
+// Canvas-Größe bzw. Zeigerkoordinaten dafür passend um.
+function isRotatedView() {
+  return coarsePointer && portraitQuery.matches;
+}
 
 let LEVEL = null;     // aktuell aktives Level (wird von ui.js/main.js gesetzt)
 
@@ -31,6 +40,9 @@ let aiStates = [];   // pro KI-Fraktion: { owner, profile, timer }
 let gameOver = false;
 let inMenu = true;   // Level-Auswahl sichtbar, Spiel pausiert
 let lastTime = 0;
+
+let debugMode = false;  // Balance-Debug-Anzeige (Toggle über 📊-Knopf / F8)
+let fpsSmooth = 0;      // geglättete Bildrate = Ticks/Sek. der Simulation
 
 let view = { scale: 1, offX: 0, offY: 0 };
 
@@ -76,24 +88,34 @@ function makeStars() {
 
 function resize() {
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.round(window.innerWidth * dpr);
-  canvas.height = Math.round(window.innerHeight * dpr);
-  canvas.style.width = window.innerWidth + "px";
-  canvas.style.height = window.innerHeight + "px";
+
+  // Bei gedrehter Ansicht (Hochformat-Handy, siehe #appRoot in styles.css)
+  // sind Breite/Höhe des Bildschirms vertauscht: die "logische" Breite, in
+  // der Canvas & UI jetzt tatsächlich liegen, entspricht der Bildschirmhöhe
+  // und umgekehrt. Ab hier rechnet alles nur noch mit vw/vh, nie mehr
+  // direkt mit window.innerWidth/innerHeight.
+  const rotated = isRotatedView();
+  const vw = rotated ? window.innerHeight : window.innerWidth;
+  const vh = rotated ? window.innerWidth : window.innerHeight;
+
+  canvas.width = Math.round(vw * dpr);
+  canvas.height = Math.round(vh * dpr);
+  canvas.style.width = vw + "px";
+  canvas.style.height = vh + "px";
 
   // Auf kleinen Bildschirmen (Handy quer) sind HUD/Legende ausgeblendet
   // bzw. kompakt – dann reicht weniger Rand für mehr Spielfläche. Unten ist
   // dort (Legende + Hinweiszeile per CSS ausgeblendet, siehe styles.css)
   // fast nichts mehr zu reservieren, oben bleibt die HUD-Zeile bestehen –
   // daher asymmetrisch statt oben=unten, sonst verschenken wir Spielfläche.
-  const small = window.innerHeight < 500;
+  const small = vh < 500;
   const padTop = small ? 30 : 70;
   const padBottom = small ? 10 : 70;
-  const side = window.innerWidth < 700 ? 12 : 20;
-  const availW = window.innerWidth - side * 2;
-  const availH = window.innerHeight - padTop - padBottom;
+  const side = vw < 700 ? 12 : 20;
+  const availW = vw - side * 2;
+  const availH = vh - padTop - padBottom;
   view.scale = Math.min(availW / LEVEL.width, availH / LEVEL.height);
-  view.offX = (window.innerWidth - LEVEL.width * view.scale) / 2;
+  view.offX = (vw - LEVEL.width * view.scale) / 2;
   view.offY = padTop + (availH - LEVEL.height * view.scale) / 2;
 }
 
@@ -166,13 +188,11 @@ function outgoing(cell) {
   return tentacles.filter(t => !t.dead && t.src === cell && (t.mode === "grow" || t.mode === "flow"));
 }
 
-// Kann die Zelle Überschuss weiterleiten? (mind. eine aktive Tentakel)
-function hasActiveOut(cell) {
-  return tentacles.some(t => !t.dead && t.src === cell && (t.mode === "grow" || t.mode === "flow"));
-}
-
 // Punkte einer Zelle gutschreiben; was über das Maximum hinausgeht, wandert
-// in den Überschuss-Puffer (sofern die Zelle Tentakel zum Weiterleiten hat)
+// IMMER in den Überschuss-Puffer (gedeckelt bei CONFIG.overflowBuffer) statt
+// verworfen zu werden – auch wenn die Zelle gerade (noch) keine aktive
+// Tentakel hat. Erst sobald eine Tentakel aktiv ist, wird der Puffer über
+// _boostShare gleichmäßig auf alle aktiven Kanäle verteilt (siehe update()).
 function creditUnits(cell, amount) {
   const max = cellMax(cell);
   const room = max - cell.units;
@@ -180,9 +200,7 @@ function creditUnits(cell, amount) {
     cell.units += amount;
   } else {
     cell.units = max;
-    if (hasActiveOut(cell)) {
-      cell.boost = Math.min(CONFIG.overflowBuffer, cell.boost + (amount - room));
-    }
+    cell.boost = Math.min(CONFIG.overflowBuffer, cell.boost + (amount - room));
   }
 }
 
@@ -601,11 +619,11 @@ function update(dt) {
         const share = Math.min(t.src.boost, t.src._boostShare, want);
         total = base + share;
 
-        if (!hostile && !hasActiveOut(dst)) {
-          // Heilen: Ziel voll und ohne eigene Tentakel? Dann nur bis zum
-          // Maximum pumpen (nichts verschwenden). Kann das Ziel weiterleiten,
-          // fließt der Rest in dessen Überschuss-Puffer.
-          const room = cellMax(dst) - dst.units;
+        if (!hostile) {
+          // Heilen: nie mehr schicken, als das Ziel aufnehmen ODER puffern
+          // kann (Kapazität + noch freier Überschuss-Puffer) – alles
+          // darüber hinaus würde creditUnits ohnehin verwerfen.
+          const room = (cellMax(dst) - dst.units) + Math.max(0, CONFIG.overflowBuffer - dst.boost);
           total = Math.min(total, room / t.heal);
         }
 
@@ -702,9 +720,20 @@ function checkVictory() {
    ====================================================================== */
 
 function toWorld(e) {
+  // e.clientX/Y liegen immer im physischen (ungedrehten) Viewport. Bei
+  // gedrehter Ansicht (siehe #appRoot in styles.css, um 90° im Uhrzeigersinn
+  // gedreht mit Drehpunkt oben-links bei x=innerWidth) muss die Rotation
+  // zurückgerechnet werden, bevor view.offX/offY/scale (die in der
+  // "logischen", gedrehten Canvas-Größe rechnen) angewendet werden.
+  let cx = e.clientX, cy = e.clientY;
+  if (isRotatedView()) {
+    const rx = cy;
+    const ry = window.innerWidth - cx;
+    cx = rx; cy = ry;
+  }
   return {
-    x: (e.clientX - view.offX) / view.scale,
-    y: (e.clientY - view.offY) / view.scale
+    x: (cx - view.offX) / view.scale,
+    y: (cy - view.offY) / view.scale
   };
 }
 
@@ -786,7 +815,10 @@ canvas.addEventListener("pointerup", e => {
 
 canvas.addEventListener("pointercancel", () => { dragSource = null; cutting = false; cutLast = null; cutArmed = false; });
 canvas.addEventListener("contextmenu", e => { e.preventDefault(); selected = null; dragSource = null; });
-window.addEventListener("keydown", e => { if (e.key === "Escape") { selected = null; dragSource = null; } });
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape") { selected = null; dragSource = null; }
+  if (e.key === "F8") { e.preventDefault(); toggleDebugMode(); }
+});
 
 /* ======================================================================
    RENDERING
@@ -906,6 +938,17 @@ function drawTentacle(t, now) {
   ctx.fill();
   ctx.restore();
 
+  // Balance-Debug: Durchsatz (Wert/Sek.) einer angedockten, aktiv
+  // übertragenden Tentakel neben der Spitze einblenden.
+  if (debugMode && t.mode === "flow" && t.rate > 0.05) {
+    ctx.save();
+    ctx.font = '600 10px "Consolas", "SF Mono", monospace';
+    ctx.textAlign = "center";
+    ctx.fillStyle = hexToRgba("#eaf2fa", 0.8);
+    ctx.fillText(`${t.rate.toFixed(1)}/s`, tipX, tipY - 10);
+    ctx.restore();
+  }
+
   // Duell-Funken: weiß glühende Spitze, solange zwei Tentakel ringen
   if (t.clashGlow > 0) {
     const a = Math.min(1, t.clashGlow / 0.25);
@@ -978,18 +1021,20 @@ function drawTentacle(t, now) {
 
 function draw(now) {
   const dpr = window.devicePixelRatio || 1;
+  // Canvas-Fläche in ihrer eigenen (ggf. gedrehten) Größe – siehe resize().
+  const vw = canvas.width / dpr, vh = canvas.height / dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  ctx.clearRect(0, 0, vw, vh);
 
   // Hintergrund-Vignette
   const vg = ctx.createRadialGradient(
-    window.innerWidth / 2, window.innerHeight / 2, 100,
-    window.innerWidth / 2, window.innerHeight / 2, Math.max(window.innerWidth, window.innerHeight) * 0.7
+    vw / 2, vh / 2, 100,
+    vw / 2, vh / 2, Math.max(vw, vh) * 0.7
   );
   vg.addColorStop(0, "#0d1626");
   vg.addColorStop(1, "#080e18");
   ctx.fillStyle = vg;
-  ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+  ctx.fillRect(0, 0, vw, vh);
 
   // In Weltkoordinaten wechseln
   ctx.setTransform(view.scale * dpr, 0, 0, view.scale * dpr, view.offX * dpr, view.offY * dpr);
@@ -1153,6 +1198,14 @@ function draw(now) {
     // nie negativ anzeigen (während des Not-Einzugs kann der Wert intern < 0 sein)
     ctx.fillText(String(Math.max(0, Math.floor(c.units))), c.x, c.y + 1);
 
+    // Balance-Debug: Produktion/Sek. und Kapazität dezent über der Zelle
+    if (debugMode) {
+      ctx.font = '600 10px "Consolas", "SF Mono", monospace';
+      ctx.textAlign = "center";
+      ctx.fillStyle = hexToRgba("#eaf2fa", 0.55);
+      ctx.fillText(`+${cellProd(c).toFixed(1)}/s · ${cellMax(c)}`, c.x, c.y - r - 9);
+    }
+
     // Tentakel-Slots als kleine Punkte unter befehligbaren Zellen
     if (controllable(c)) {
       const total = maxSlots(c);
@@ -1185,5 +1238,7 @@ function frame(now) {
   update(dt);
   draw(now);
   updateHud();
+  if (dt > 0) fpsSmooth += (1 / dt - fpsSmooth) * Math.min(1, dt * 4);
+  if (debugMode) updateDebugPanel();
   requestAnimationFrame(frame);
 }

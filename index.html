@@ -16,6 +16,13 @@
 </head>
 <body>
 
+<!-- #appRoot: alles UI in einem Wrapper, damit er auf Handys im Hochformat
+     komplett um 90° gedreht werden kann (siehe styles.css) - das querformatig
+     angelegte Spielfeld füllt den Bildschirm dann wieder ordentlich aus statt
+     winzig verkleinert zu werden. Die Rotation ist rein visuell (CSS); die
+     Umrechnung der Zeigerkoordinaten übernimmt toWorld()/resize() in game.js. -->
+<div id="appRoot">
+
 <canvas id="game"></canvas>
 
 <div class="hud-top">
@@ -25,8 +32,11 @@
     <button id="restart" type="button">Neustart</button>
     <button id="btnLevels" type="button">Level</button>
     <button id="btnDebug" type="button" title="Debug-Zustand herunterladen (auch: F9)">🐞</button>
+    <button id="btnBalance" type="button" title="Balance-Anzeige an/aus (auch: F8)">📊</button>
   </div>
 </div>
+
+<div class="debug-panel hidden" id="debugPanel"></div>
 
 <div class="hint" id="hint">
   Von eigener Zelle zu einem Ziel ziehen: Tentakel ausfahren (kostet Punkte) &middot;
@@ -81,6 +91,8 @@
     <button id="overlayMenu" class="ghost-btn" type="button">Levelauswahl</button>
   </div>
 </div>
+
+</div><!-- /#appRoot -->
 
 <script src="js/config.js"></script>
 <script src="js/rng.js"></script>

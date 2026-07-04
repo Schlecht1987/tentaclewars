@@ -202,6 +202,35 @@ function updateHud() {
 }
 
 /* ---------------------------------------------------------------------
+   Balance-Debug-Anzeige (Toggle: 📊-Knopf im HUD / Taste F8)
+   Zeigt zusätzlich zur normalen Anzeige Produktionsraten pro Zelle,
+   Durchsatz pro Tentakel (siehe game.js draw/drawTentacle) sowie eine
+   kleine Gesamt-Übersicht (Ticks/Sek., Zellen/Vorrat/Produktion je
+   Fraktion) unten links – rein informativ, keine Spiellogik.
+   --------------------------------------------------------------------- */
+
+function toggleDebugMode() {
+  debugMode = !debugMode;
+  document.getElementById("debugPanel").classList.toggle("hidden", !debugMode);
+  document.getElementById("btnBalance").classList.toggle("active", debugMode);
+  if (debugMode) updateDebugPanel();
+}
+
+function updateDebugPanel() {
+  const panel = document.getElementById("debugPanel");
+  const owners = ["player", ...AI_FACTIONS.filter(f => cells.some(c => c.owner === f))];
+  const lines = [`${fpsSmooth.toFixed(0)} Ticks/s  ·  ${cells.length} Zellen  ·  ${tentacles.length} Tentakel`];
+  for (const owner of owners) {
+    const oc = cells.filter(c => c.owner === owner);
+    if (!oc.length) continue;
+    const units = oc.reduce((s, c) => s + Math.max(0, c.units), 0);
+    const prod = oc.reduce((s, c) => s + cellProd(c), 0);
+    lines.push(`${OWNER_LABEL[owner] || owner}: ${oc.length} Zellen · ${units.toFixed(0)} Vorrat · +${prod.toFixed(1)}/s`);
+  }
+  panel.textContent = lines.join("\n");
+}
+
+/* ---------------------------------------------------------------------
    Sieg / Niederlage (Overlay-Inhalt; ausgelöst von checkVictory in game.js)
    --------------------------------------------------------------------- */
 
@@ -291,6 +320,7 @@ function initUi() {
   document.getElementById("restart").addEventListener("click", resetGame);
   document.getElementById("overlayRestart").addEventListener("click", resetGame);
   document.getElementById("btnLevels").addEventListener("click", showLevelMenu);
+  document.getElementById("btnBalance").addEventListener("click", toggleDebugMode);
   document.getElementById("overlayMenu").addEventListener("click", showLevelMenu);
   document.getElementById("overlayNext").addEventListener("click", onOverlayNext);
 
