@@ -7,6 +7,7 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
 
 let LEVEL = null;     // aktuell aktives Level (wird von ui.js/main.js gesetzt)
 
@@ -81,14 +82,19 @@ function resize() {
   canvas.style.height = window.innerHeight + "px";
 
   // Auf kleinen Bildschirmen (Handy quer) sind HUD/Legende ausgeblendet
-  // bzw. kompakt – dann reicht weniger Rand für mehr Spielfläche.
-  const pad = window.innerHeight < 500 ? 34 : 70;
+  // bzw. kompakt – dann reicht weniger Rand für mehr Spielfläche. Unten ist
+  // dort (Legende + Hinweiszeile per CSS ausgeblendet, siehe styles.css)
+  // fast nichts mehr zu reservieren, oben bleibt die HUD-Zeile bestehen –
+  // daher asymmetrisch statt oben=unten, sonst verschenken wir Spielfläche.
+  const small = window.innerHeight < 500;
+  const padTop = small ? 30 : 70;
+  const padBottom = small ? 10 : 70;
   const side = window.innerWidth < 700 ? 12 : 20;
   const availW = window.innerWidth - side * 2;
-  const availH = window.innerHeight - pad * 2;
+  const availH = window.innerHeight - padTop - padBottom;
   view.scale = Math.min(availW / LEVEL.width, availH / LEVEL.height);
   view.offX = (window.innerWidth - LEVEL.width * view.scale) / 2;
-  view.offY = pad + (availH - LEVEL.height * view.scale) / 2;
+  view.offY = padTop + (availH - LEVEL.height * view.scale) / 2;
 }
 
 /* ======================================================================
@@ -694,12 +700,20 @@ function toWorld(e) {
   };
 }
 
+// Toleranz in Weltkoordinaten so bemessen, dass sie auf dem Bildschirm
+// (nach Multiplikation mit view.scale) unabhängig vom Zoom-Level immer
+// gleich groß bleibt – sonst werden Zellen auf kleinen/verkleinerten
+// Handy-Ansichten (view.scale klein) fast untreffbar. Auf Touch-Geräten
+// (Finger statt Mauszeiger) etwas großzügiger als mit der Maus.
 function pickCell(w) {
+  const slop = (coarsePointer ? 26 : 14) / view.scale;
+  let best = null, bestD = Infinity;
   for (const c of cells) {
-    const r = cellRadius(c) + 12;
-    if (Math.hypot(w.x - c.x, w.y - c.y) <= r) return c;
+    const r = cellRadius(c) + slop;
+    const d = Math.hypot(w.x - c.x, w.y - c.y);
+    if (d <= r && d < bestD) { best = c; bestD = d; }
   }
-  return null;
+  return best;
 }
 
 canvas.addEventListener("pointerdown", e => {
