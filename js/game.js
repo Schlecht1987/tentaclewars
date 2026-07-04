@@ -267,34 +267,38 @@ function applyMass(t, mass) {
 //   Eigene/gegnerische Zellen: Fällt der Vorrat unter 0, wird die Zelle
 //   SOFORT erobert – ihre noch ausgefahrenen Tentakel ziehen sich danach
 //   automatisch ein und füllen den Vorrat für den NEUEN Besitzer auf.
-//   NEUTRALE Zellen: erst Garnison brechen, dann AUFLADEN (siehe captureCharge).
+//   NEUTRALE Zellen: direkt AUFLADEN, keine Garnison-Phase (siehe captureCharge).
 function damageCell(cell, dmg, byOwner) {
   if (cell.owner === "neutral") { captureCharge(cell, dmg, byOwner); return; }
   cell.units -= dmg;
   if (cell.units < 0) captureCell(cell, byOwner);
 }
 
-// Neutrale Zelle: Garnison brechen, dann für den Angreifer aufladen.
-//   Phase 1 (chargeOwner == null): normaler Schaden bis der Vorrat auf 0 fällt.
-//     Der Überschuss startet die Ladung des Angreifers.
-//   Phase 2 (chargeOwner == byOwner): weiter aufladen – bei captureCharge
-//     Punkten wechselt die Zelle den Besitzer.
-//   Phase 2 (chargeOwner != byOwner): ein Konkurrent trägt die Fremdladung ab;
-//     erst wenn sie auf 0 sinkt, übernimmt er selbst die Ladung. Das gelingt
-//     nur, wenn er mehr Angriff/Sek. liefert als der bisherige Halter.
+// Neutrale Zelle: Schaden zählt ab dem ERSTEN Treffer direkt als Ladung für
+// den Angreifer – die anfängliche Garnison (cell.units aus der Levelvorlage)
+// muss nicht erst auf 0 gebracht werden. Das verhindert weiterhin die alte
+// Killtick-Zufälligkeit (siehe chargeOwner), ohne eine separate Verteidigungs-
+// phase vorzuschalten:
+//   chargeOwner == null: erster Angreifer überhaupt – Ladung beginnt bei 0.
+//   chargeOwner == byOwner: für den aktuellen Halter weiter aufladen.
+//   chargeOwner != byOwner: ein Konkurrent trägt die Fremdladung ab; erst
+//     wenn sie auf 0 sinkt, übernimmt er selbst die Ladung. Das gelingt nur,
+//     wenn er mehr Angriff/Sek. liefert als der bisherige Halter.
 function captureCharge(cell, dmg, byOwner) {
-  if (cell.chargeOwner == null || cell.chargeOwner !== byOwner) {
-    // eigene Garnison ODER fremde Ladung abtragen
+  if (cell.chargeOwner == null) {
+    cell.chargeOwner = byOwner;
+    cell.units = dmg;
+  } else if (cell.chargeOwner === byOwner) {
+    cell.units += dmg;
+  } else {
     cell.units -= dmg;
     if (cell.units <= 0) {
       cell.chargeOwner = byOwner;
-      cell.units = -cell.units; // Überschuss wird zur Start-Ladung
-      if (cell.units >= CONFIG.captureCharge) captureCell(cell, byOwner, CONFIG.captureCharge);
+      cell.units = -cell.units;
     }
-  } else {
-    // für den aktuellen Halter weiter aufladen
-    cell.units += dmg;
-    if (cell.units >= CONFIG.captureCharge) captureCell(cell, byOwner, CONFIG.captureCharge);
+  }
+  if (cell.chargeOwner === byOwner && cell.units >= CONFIG.captureCharge) {
+    captureCell(cell, byOwner, CONFIG.captureCharge);
   }
 }
 
