@@ -170,6 +170,29 @@ body {
 .overlay-buttons { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
 .overlay-buttons .hidden { display: none; }
 
+/* ================= HOCHFORMAT-HINWEIS (Handy) ================= */
+#rotateHint { display: none; }
+@media (orientation: portrait) and (max-width: 600px) {
+  #game, .hud-top, .hint, .legend,
+  #levelSelect, #randomSetup, #overlay { display: none !important; }
+  #rotateHint {
+    display: flex; position: fixed; inset: 0; z-index: 999;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; padding: 24px; text-align: center;
+    background: var(--bg); color: var(--text);
+  }
+  #rotateHint .rotate-icon {
+    font-size: 48px; color: var(--player);
+    animation: rotate-hint-spin 1.6s ease-in-out infinite;
+  }
+  #rotateHint p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--dim); letter-spacing: .02em; }
+  @keyframes rotate-hint-spin {
+    0%, 20% { transform: rotate(0deg); }
+    50%, 70% { transform: rotate(-90deg); }
+    100% { transform: rotate(-90deg); }
+  }
+}
+
 /* ================= KLEINE BILDSCHIRME (Handy) ================= */
 @media (max-width: 700px), (max-height: 520px) {
   .legend, .hint { display: none; }
