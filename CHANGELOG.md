@@ -18,6 +18,7 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/en/1
 - **Mobile-Layout:** Viewport-Meta, Safe-Area-Insets, responsives Spielfeld-Padding; auf kleinen Bildschirmen werden Legende und Hinweiszeile ausgeblendet.
 
 ### Added
+- **Umschalt-Knopf für die Hochformat-Drehung (🔄, nur auf Touch-Geräten sichtbar):** Bisher wurde das UI am Handy im Hochformat immer automatisch um 90° gedreht. Der neue Knopf im HUD lässt zwischen „gedreht" (Spielfeld füllt den Bildschirm, Kopf schräg halten – Standard, bisheriges Verhalten) und „normal" (kein Dreh-Trick, Spielfeld bleibt klein und zentriert wie am Desktop) umschalten, für alle, die lieber im echten Hochformat spielen. Einstellung wird in `localStorage` (`zellkrieg.rotatePortrait.v1`) gespeichert. `isRotatedView()` in `js/game.js` berücksichtigt die Einstellung zusätzlich zu Touch/Orientierung.
 - **Versionsnummer neben dem Namen:** HUD und Hauptmenü zeigen jetzt `vN` neben „Zellkrieg" an (`APP_VERSION` in `js/config.js`, gesetzt in `js/main.js`). Wird zusammen mit der `CACHE`-Version in `sw.js` bei jedem Release hochgezählt, damit sich anhand von Fehlerberichten leicht erkennen lässt, ob ein Client schon aktualisiert hat.
 
 ### Fixed

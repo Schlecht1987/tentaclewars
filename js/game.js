@@ -11,12 +11,27 @@ const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matc
 const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
 const portraitQuery = window.matchMedia("(orientation: portrait)");
 
-// Hochformat am Touch-Gerät: #appRoot wird dann per CSS um 90° gedreht
-// (siehe styles.css), damit das querformatige Spielfeld den Bildschirm
-// ausfüllt statt winzig verkleinert zu werden. resize()/toWorld() rechnen
-// Canvas-Größe bzw. Zeigerkoordinaten dafür passend um.
+// Hochformat am Touch-Gerät: #appRoot wird dann (sofern nicht per Knopf
+// abgeschaltet, siehe rotatePreference) um 90° gedreht, damit das
+// querformatige Spielfeld den Bildschirm ausfüllt statt winzig verkleinert
+// zu werden. resize()/toWorld() rechnen Canvas-Größe bzw. Zeigerkoordinaten
+// dafür passend um.
 function isRotatedView() {
-  return coarsePointer && portraitQuery.matches;
+  return coarsePointer && portraitQuery.matches && rotatePreference;
+}
+
+const ROTATE_PREF_KEY = "zellkrieg.rotatePortrait.v1";
+function loadRotatePreference() {
+  try {
+    const raw = localStorage.getItem(ROTATE_PREF_KEY);
+    return raw === null ? true : raw === "1"; // Standard: gedreht (bisheriges Verhalten)
+  } catch (e) { return true; }
+}
+let rotatePreference = loadRotatePreference();
+function setRotatePreference(on) {
+  rotatePreference = on;
+  try { localStorage.setItem(ROTATE_PREF_KEY, on ? "1" : "0"); } catch (e) { /* privater Modus o.ä. */ }
+  resize();
 }
 
 let LEVEL = null;     // aktuell aktives Level (wird von ui.js/main.js gesetzt)
