@@ -6,6 +6,7 @@
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+const appRoot = document.getElementById("appRoot");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
 const portraitQuery = window.matchMedia("(orientation: portrait)");
@@ -97,6 +98,33 @@ function resize() {
   const rotated = isRotatedView();
   const vw = rotated ? window.innerHeight : window.innerWidth;
   const vh = rotated ? window.innerWidth : window.innerHeight;
+
+  // #appRoot-Drehung wird hier statt per CSS-Prozentwerten (100vh/100vw)
+  // gesetzt: auf manchen mobilen Browsern weicht die vh/vw-Einheit vom
+  // tatsächlich sichtbaren Viewport ab (z.B. wenn die Adressleiste
+  // ein-/ausblendet), wodurch die gedrehte Box nicht mehr exakt zur
+  // Canvas-Größe passt und das UI "geteilt"/verschoben wirkt. Inline-Styles
+  // aus denselben window.innerWidth/innerHeight-Werten, die auch die
+  // Canvas-Größe bestimmen, garantieren, dass beide immer exakt
+  // übereinstimmen. Inline-Styles überschreiben dabei die CSS-Regel in
+  // styles.css (die als Fallback stehen bleibt, falls JS mal nicht läuft).
+  if (rotated) {
+    appRoot.style.position = "fixed";
+    appRoot.style.top = "0";
+    appRoot.style.left = window.innerWidth + "px";
+    appRoot.style.width = window.innerHeight + "px";
+    appRoot.style.height = window.innerWidth + "px";
+    appRoot.style.transformOrigin = "0 0";
+    appRoot.style.transform = "rotate(90deg)";
+  } else {
+    appRoot.style.position = "";
+    appRoot.style.top = "";
+    appRoot.style.left = "";
+    appRoot.style.width = "";
+    appRoot.style.height = "";
+    appRoot.style.transformOrigin = "";
+    appRoot.style.transform = "";
+  }
 
   canvas.width = Math.round(vw * dpr);
   canvas.height = Math.round(vh * dpr);

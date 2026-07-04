@@ -29,20 +29,17 @@ body {
    ausrichten. game.js rechnet Zeigerkoordinaten (toWorld) und die
    Canvas-Größe (resize) passend dazu um. */
 @media (orientation: portrait) and (pointer: coarse) {
+  /* Reiner Fallback: resize() in js/game.js setzt dieselben Werte als
+     Inline-Style, aus denselben window.innerWidth/innerHeight, die auch die
+     Canvas-Größe bestimmen - Inline-Styles gewinnen immer gegen diese Regel.
+     vh/vw wichen in manchen mobilen Browsern (Adressleiste ein/ausgeblendet)
+     vom tatsächlich sichtbaren Viewport ab, wodurch die gedrehte Box nicht
+     mehr zur Canvas passte ("geteilter" Bildschirm) - falls JS aus
+     irgendeinem Grund nicht läuft, greift wenigstens diese Näherung. */
   #appRoot {
     position: fixed;
     top: 0; left: 100%;
-    /* dvh/dvw (dynamische Viewport-Einheiten) statt vh/vw: vh/vw beziehen sich
-       in mobilen Browsern auf den GROSSEN Viewport (Adressleiste ausgeblendet),
-       während JS (window.innerWidth/innerHeight in resize()) immer den gerade
-       SICHTBAREN Viewport liefert. Bei eingeblendeter Adressleiste driften
-       beide Werte auseinander -> die gedrehte Box passt dann nicht mehr zur
-       tatsächlichen Canvas-Größe und das Spielfeld wirkt "geteilt"/verschoben.
-       dvh/dvw folgen wie window.innerWidth/innerHeight dem aktuell sichtbaren
-       Viewport. Die vh/vw-Angabe bleibt als Fallback für Browser ohne
-       dvh/dvw-Unterstützung (ältere Safari/WebView) stehen. */
     width: 100vh; height: 100vw;
-    width: 100dvh; height: 100dvw;
     transform-origin: 0 0;
     transform: rotate(90deg);
   }
