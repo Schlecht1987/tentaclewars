@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Zellkrieg-App-Icon: Spielerzelle mit Tentakel zu einer neutralen Zelle -->
+  <rect width="512" height="512" rx="96" fill="#0a111c"/>
+  <!-- Tentakel (leicht geschwungen) -->
+  <path d="M 214 330 Q 300 260 356 178" fill="none" stroke="#4fc1ff" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="356" cy="178" r="12" fill="#4fc1ff"/>
+  <!-- neutrale Zielzelle oben rechts -->
+  <circle cx="392" cy="130" r="52" fill="#101a2a" stroke="#8593a1" stroke-width="10"/>
+  <!-- Spielerzelle unten links mit Füllstands-Ring -->
+  <circle cx="176" cy="352" r="92" fill="#101a2a" stroke="#4fc1ff" stroke-width="14"/>
+  <path d="M 176 238 A 114 114 0 1 1 76 300" fill="none" stroke="#4fc1ff" stroke-width="10" stroke-linecap="round" opacity="0.55"/>
+</svg>

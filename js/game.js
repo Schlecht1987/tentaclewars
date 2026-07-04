@@ -1,252 +1,4 @@
-<title>Zellkrieg – Tentacle-Wars-Prototyp</title>
-<style>
-  /* ================= FARB- & LAYOUT-TOKENS ================= */
-  :root {
-    --bg:      #0a111c;   /* tiefes Blauschwarz – "Nährlösung" */
-    --player:  #4fc1ff;   /* Spieler: Cyan-Blau */
-    --enemy:   #ff5964;   /* Gegner: Koralle-Rot */
-    --neutral: #8593a1;   /* Neutral: kühles Grau */
-    --text:    #c7d3e0;
-    --dim:     #6b7a8c;
-  }
-  html, body { height: 100%; }
-  body {
-    margin: 0; overflow: hidden; background: var(--bg);
-    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-    color: var(--text);
-    -webkit-user-select: none; user-select: none;
-  }
-  #game { position: fixed; inset: 0; display: block; cursor: crosshair; touch-action: none; }
-
-  /* ================= HUD OBEN ================= */
-  .hud-top {
-    position: fixed; top: 0; left: 0; right: 0;
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 10px 18px; pointer-events: none;
-    background: linear-gradient(rgba(8,13,22,.85), transparent);
-  }
-  .hud-top h1 {
-    margin: 0; font-size: 15px; font-weight: 700;
-    letter-spacing: .38em; text-transform: uppercase; color: var(--text);
-  }
-  .hud-top h1 span { color: var(--player); }
-  .status { display: flex; align-items: center; gap: 14px; font-size: 13px; }
-  .chip { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
-  .chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-  .chip.blue i { background: var(--player); box-shadow: 0 0 8px var(--player); }
-  .chip.red  i { background: var(--enemy);  box-shadow: 0 0 8px var(--enemy); }
-  #restart, #btnLevels {
-    pointer-events: auto; cursor: pointer;
-    background: transparent; color: var(--dim);
-    border: 1px solid rgba(133,147,161,.35); border-radius: 6px;
-    padding: 4px 12px; font: inherit; font-size: 12px; letter-spacing: .08em;
-  }
-  #restart:hover, #restart:focus-visible,
-  #btnLevels:hover, #btnLevels:focus-visible { color: var(--text); border-color: var(--text); outline: none; }
-
-  /* ================= LEVEL-AUSWAHL ================= */
-  #levelSelect {
-    position: fixed; inset: 0; z-index: 5;
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    gap: 6px; background: rgba(8,13,22,.9); backdrop-filter: blur(4px);
-  }
-  #levelSelect.hidden { display: none; }
-  #levelSelect h2 {
-    margin: 0; font-size: 34px; font-weight: 800;
-    letter-spacing: .38em; text-transform: uppercase; color: var(--text);
-  }
-  #levelSelect h2 span { color: var(--player); }
-  #levelSelect .sub { margin: 0 0 14px; color: var(--dim); font-size: 13px; letter-spacing: .12em; }
-  .levels { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; padding: 0 20px; }
-  .level-card {
-    width: 250px; text-align: left; cursor: pointer; font: inherit;
-    background: rgba(16,26,42,.92); color: var(--text);
-    border: 1px solid rgba(133,147,161,.3); border-radius: 10px; padding: 16px 18px;
-  }
-  .level-card:hover, .level-card:focus-visible { border-color: var(--player); outline: none; }
-  .level-card .tag {
-    display: inline-block; margin-bottom: 8px; padding: 2px 8px;
-    font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
-    color: var(--player); border: 1px solid rgba(79,193,255,.4); border-radius: 999px;
-  }
-  .level-card h3 { margin: 0 0 6px; font-size: 16px; }
-  .level-card p { margin: 0; font-size: 12px; color: var(--dim); line-height: 1.55; }
-
-  /* ================= LEGENDE UNTEN ================= */
-  .legend {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    display: flex; justify-content: center; align-items: center;
-    gap: 20px; flex-wrap: wrap; padding: 10px 12px 12px;
-    pointer-events: none; font-size: 12px; color: var(--dim);
-    background: linear-gradient(transparent, rgba(8,13,22,.9));
-  }
-  .legend-item { display: flex; align-items: center; gap: 7px; }
-  .legend-item canvas { display: block; }
-  .hint {
-    position: fixed; bottom: 44px; left: 0; right: 0;
-    text-align: center; font-size: 12px; color: var(--dim);
-    pointer-events: none; letter-spacing: .04em;
-  }
-
-  /* ================= SIEG/NIEDERLAGE-OVERLAY ================= */
-  #overlay {
-    position: fixed; inset: 0; display: none;
-    flex-direction: column; justify-content: center; align-items: center; gap: 18px;
-    background: rgba(8, 13, 22, .72); backdrop-filter: blur(3px);
-  }
-  #overlay.show { display: flex; }
-  #overlay h2 {
-    margin: 0; font-size: 52px; font-weight: 800;
-    letter-spacing: .3em; text-transform: uppercase; text-wrap: balance;
-  }
-  #overlay p { margin: 0; color: var(--dim); font-size: 14px; }
-  #overlay button {
-    cursor: pointer; font: inherit; font-size: 14px; letter-spacing: .1em;
-    color: var(--bg); background: var(--text); border: none;
-    border-radius: 8px; padding: 10px 26px; margin-top: 6px;
-  }
-  #overlay button:hover, #overlay button:focus-visible { background: #fff; outline: none; }
-</style>
-
-<canvas id="game"></canvas>
-
-<div class="hud-top">
-  <h1>Zell<span>krieg</span></h1>
-  <div class="status">
-    <span class="chip blue"><i></i><span id="countPlayer">0</span> Zellen</span>
-    <span class="chip red"><i></i><span id="countEnemy">0</span> Zellen</span>
-    <button id="restart" type="button">Neustart</button>
-    <button id="btnLevels" type="button">Level</button>
-  </div>
-</div>
-
-<div class="hint" id="hint">
-  Von eigener Zelle zu einem Ziel ziehen: Tentakel ausfahren (kostet Punkte) &middot;
-  Ziel erneut anklicken: Tentakel einziehen &middot;
-  Auf freier Fl&auml;che &uuml;ber eine EIGENE Tentakel wischen: durchschneiden
-</div>
-
-<div id="levelSelect">
-  <h2>Zell<span>krieg</span></h2>
-  <p class="sub">LEVEL W&Auml;HLEN</p>
-  <div class="levels" id="levelCards"></div>
-</div>
-<div class="legend" id="legend"></div>
-
-<div id="overlay">
-  <h2 id="overlayTitle">Sieg</h2>
-  <p id="overlayText"></p>
-  <button id="overlayRestart" type="button">Noch einmal</button>
-</div>
-
-<script>
 "use strict";
-
-/* ======================================================================
-   KONFIGURATION – hier Werte und Level anpassen
-   ====================================================================== */
-
-const CONFIG = {
-  // --- Tentakel ---
-  tentacleSpeed:  55,   // Wachstums-Geschwindigkeit der Tentakelspitze (Welt-Pixel/Sek.) – bewusst langsam
-  retractSpeed:   130,  // Geschwindigkeit beim Einziehen bzw. von abgetrennten Stücken
-  lengthPerUnit:  22,   // Pixel Tentakel pro Punkt: Wachstum KOSTET Punkte (lange Tentakel = teuer)
-  transferRate:   3,    // max. Punkte/Sek. pro angedockter Tentakel.
-                         // HEILUNG ist zusätzlich auf die Produktion der Quelle
-                         // gedeckelt (Unterstützen kostet nie Vorrat).
-                         // ANGRIFFE und DUELLE zapfen dagegen den VORRAT mit
-                         // voller Rate an – gespeicherte Punkte werden in
-                         // Schaden umgemünzt, guter Nachschub entscheidet.
-  flowDotSpeed:   80,   // rein visuell: Geschwindigkeit der Fluss-Punkte auf der Tentakel
-
-  // Überschuss-Durchleitung: Ist eine Zelle voll, verfallen eingehende Heilung
-  // und eigene Produktion nicht, sondern landen in einem Puffer und werden
-  // ZUSÄTZLICH durch die eigenen Tentakel weitergeleitet (Symbiose-Ketten:
-  // Heiler -> Angreifer -> Feind). So groß darf der Puffer werden:
-  overflowBuffer: 12,
-
-  // --- Tentakel-Slots: wie viele Tentakel eine Zelle gleichzeitig ausfahren darf ---
-  slotBase: 1,          // Grundausstattung
-  slotStep: 25,         // pro slotStep AKTUELLE Punkte ein zusätzlicher Slot ...
-  slotMax:  4,          // ... bis maximal so viele
-
-  // --- Sonstiges ---
-  bunkerDefense:   1,    // Bunker senkt den Schaden JEDES ankommenden Punkts um diesen Wert
-  neutralProduces: false,// Sollen auch neutrale Zellen produzieren?
-
-  // "Heimvorteil" in Tentakel-Duellen: Zusatzkraft (Punkte/Sek.) direkt an
-  // der eigenen Zelle, linear abfallend bis 0 in der Korridor-Mitte.
-  // Dadurch drückt eine Verteidiger-Tentakel einen Angreifer mindestens bis
-  // zur Mitte zurück – bei gleich starken Zellen pendelt sich die Front dort ein.
-  clashHomefield: 4,
-
-  // --- Gegner-KI ---
-  aiInterval:  3.0,     // Wie oft die KI handelt (Sekunden)
-  aiMinUnits:  12       // KI fährt erst Tentakel aus, wenn die Quellzelle so viele Punkte hat
-};
-
-// Die fünf Zelltypen. attack/heal gelten PRO ÜBERTRAGENEM PUNKT und hängen
-// an der SENDENDEN Zelle; die Bunker-Verteidigung an der empfangenden.
-const CELL_TYPES = {
-  normal:   { label: "Normal",    prod: 1.0, max: 50,  attack: 1, heal: 1, radius: 26 },
-  healer:   { label: "Heiler",    prod: 1.0, max: 50,  attack: 1, heal: 2, radius: 26 },
-  attacker: { label: "Angreifer", prod: 1.0, max: 50,  attack: 2, heal: 1, radius: 25 },
-  factory:  { label: "Fabrik",    prod: 2.0, max: 25,  attack: 1, heal: 1, radius: 22 },
-  bunker:   { label: "Bunker",    prod: 0.5, max: 100, attack: 1, heal: 1, radius: 33 }
-};
-
-// Besitzer-Farben (müssen zu den CSS-Tokens oben passen)
-const OWNER_COLOR = { player: "#4fc1ff", enemy: "#ff5964", neutral: "#8593a1" };
-
-// Level-Definitionen: Koordinaten in einem virtuellen Spielfeld von 1000 x 640.
-// Es gibt KEINE festen Routen – jede Zelle kann jede andere anvisieren.
-// Entfernung kostet: lange Tentakel verbrauchen entsprechend viele Punkte.
-// sandbox: true  ->  Spieler steuert BEIDE Parteien, keine KI, kein Sieg/Niederlage.
-const LEVELS = [
-  {
-    name: "Erstkontakt",
-    desc: "3 gegen 3 mit umkämpfter neutraler Mitte. Die KI steuert Rot.",
-    tag: "Gegen die KI",
-    sandbox: false,
-    width: 1000, height: 640,
-    cells: [
-      { id: "A", type: "normal",   owner: "player",  x: 120, y: 500, units: 30 },
-      { id: "B", type: "factory",  owner: "player",  x: 250, y: 590, units: 12 },
-      { id: "C", type: "healer",   owner: "player",  x: 200, y: 360, units: 15 },
-      { id: "D", type: "attacker", owner: "neutral", x: 420, y: 420, units: 20 },
-      { id: "E", type: "bunker",   owner: "neutral", x: 500, y: 250, units: 25 },
-      { id: "F", type: "normal",   owner: "neutral", x: 620, y: 480, units: 12 },
-      { id: "G", type: "healer",   owner: "neutral", x: 580, y: 120, units: 15 },
-      { id: "H", type: "normal",   owner: "enemy",   x: 880, y: 180, units: 30 },
-      { id: "I", type: "factory",  owner: "enemy",   x: 770, y: 80,  units: 12 },
-      { id: "J", type: "attacker", owner: "enemy",   x: 720, y: 300, units: 15 }
-    ]
-  },
-  {
-    name: "Testlabor",
-    desc: "Alle fünf Zelltypen auf beiden Seiten. Du steuerst Blau UND Rot – keine KI, kein Spielende. Zum Ausprobieren der Mechaniken.",
-    tag: "Sandbox",
-    sandbox: true,
-    width: 1000, height: 640,
-    cells: [
-      { id: "L1", type: "normal",   owner: "player",  x: 150, y: 130, units: 30 },
-      { id: "L2", type: "healer",   owner: "player",  x: 110, y: 300, units: 30 },
-      { id: "L3", type: "attacker", owner: "player",  x: 150, y: 470, units: 30 },
-      { id: "L4", type: "factory",  owner: "player",  x: 270, y: 210, units: 15 },
-      { id: "L5", type: "bunker",   owner: "player",  x: 270, y: 400, units: 40 },
-      { id: "M1", type: "normal",   owner: "neutral", x: 500, y: 140, units: 15 },
-      { id: "M2", type: "bunker",   owner: "neutral", x: 500, y: 320, units: 25 },
-      { id: "M3", type: "normal",   owner: "neutral", x: 500, y: 500, units: 15 },
-      { id: "R1", type: "normal",   owner: "enemy",   x: 850, y: 130, units: 30 },
-      { id: "R2", type: "healer",   owner: "enemy",   x: 890, y: 300, units: 30 },
-      { id: "R3", type: "attacker", owner: "enemy",   x: 850, y: 470, units: 30 },
-      { id: "R4", type: "factory",  owner: "enemy",   x: 730, y: 210, units: 15 },
-      { id: "R5", type: "bunker",   owner: "enemy",   x: 730, y: 400, units: 40 }
-    ]
-  }
-];
-
-let LEVEL = LEVELS[0]; // aktuell aktives Level (wird über die Auswahl gesetzt)
 
 /* ======================================================================
    SPIELZUSTAND
@@ -255,6 +7,8 @@ let LEVEL = LEVELS[0]; // aktuell aktives Level (wird über die Auswahl gesetzt)
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+let LEVEL = null;     // aktuell aktives Level (wird von ui.js/main.js gesetzt)
 
 let cells = [];
 let tentacles = [];   // aktive Tentakel und abgetrennte Stücke
@@ -272,7 +26,7 @@ let cutArmed = false;     // Schnitt erst nach kurzer Zugstrecke "scharf"
 let cutTrail = [];        // Schnittspur (visuell, verblasst)
 let slashes = [];         // kurze Schnitt-Markierungen (auch für KI-Schnitte)
 
-let aiTimer = 0;
+let aiStates = [];   // pro KI-Fraktion: { owner, profile, timer }
 let gameOver = false;
 let inMenu = true;   // Level-Auswahl sichtbar, Spiel pausiert
 let lastTime = 0;
@@ -284,12 +38,28 @@ let view = { scale: 1, offX: 0, offY: 0 };
    ====================================================================== */
 
 function resetGame() {
-  cells = LEVEL.cells.map(c => ({ ...c, flash: 0, denyFlash: 0, boost: 0 }));
+  // tierMax (Ausbau-Obergrenze) und ein evtl. schon in der Levelvorlage
+  // gesetztes tier werden über den Spread übernommen; chargeOwner/tier
+  // starten frisch.
+  cells = LEVEL.cells.map(c => ({ ...c, flash: 0, denyFlash: 0, boost: 0, tier: 0, chargeOwner: null }));
   tentacles = [];
   slashes = []; cutTrail = [];
   selected = null; dragSource = null; hovered = null;
   cutting = false; cutLast = null; cutStart = null; cutArmed = false;
-  aiTimer = 0; gameOver = false;
+  gameOver = false;
+
+  // KI-Zustände: eine pro Fraktion, die im Level Zellen besitzt.
+  // Zufällige Start-Phase, damit mehrere KIs nicht im Gleichtakt handeln.
+  aiStates = [];
+  if (!LEVEL.sandbox) {
+    for (const f of AI_FACTIONS) {
+      if (LEVEL.cells.some(c => c.owner === f)) {
+        const profile = aiProfileFor(LEVEL, f);
+        aiStates.push({ owner: f, profile, timer: Math.random() * profile.interval });
+      }
+    }
+  }
+
   document.getElementById("overlay").classList.remove("show");
 }
 
@@ -310,14 +80,16 @@ function resize() {
   canvas.style.width = window.innerWidth + "px";
   canvas.style.height = window.innerHeight + "px";
 
-  const pad = 70;
-  const availW = window.innerWidth - 40;
+  // Auf kleinen Bildschirmen (Handy quer) sind HUD/Legende ausgeblendet
+  // bzw. kompakt – dann reicht weniger Rand für mehr Spielfläche.
+  const pad = window.innerHeight < 500 ? 34 : 70;
+  const side = window.innerWidth < 700 ? 12 : 20;
+  const availW = window.innerWidth - side * 2;
   const availH = window.innerHeight - pad * 2;
   view.scale = Math.min(availW / LEVEL.width, availH / LEVEL.height);
   view.offX = (window.innerWidth - LEVEL.width * view.scale) / 2;
   view.offY = pad + (availH - LEVEL.height * view.scale) / 2;
 }
-window.addEventListener("resize", resize);
 
 /* ======================================================================
    TENTAKEL-LOGIK
@@ -335,9 +107,47 @@ window.addEventListener("resize", resize);
 
 function typeOf(cell) { return CELL_TYPES[cell.type]; }
 
-// Darf der Spieler diese Zelle befehligen? (im Testlabor beide Parteien)
+/* --- Zell-Ausbau (Stufen) --------------------------------------------
+   Eine ausbaubare Zelle (tierMax > 0) steigt anhand ihres aktuellen
+   Vorrats stufenweise auf und ab (mit Hysterese, siehe CONFIG.tierUp/
+   tierDown). Die aktuelle Stufe liegt in cell.tier; Kapazität, Produktion
+   und Radius werden daraus abgeleitet, damit sich der Ausbau sauber durch
+   die gesamte Simulation und das Rendering zieht. Zellen ohne tierMax
+   verhalten sich exakt wie bisher (Typ-Werte, Stufe 0). */
+function updateTier(cell) {
+  const tm = cell.tierMax || 0;
+  if (!tm) { cell.tier = 0; return; }
+  let tier = cell.tier || 0;
+  while (tier < tm && cell.units >= CONFIG.tierUp[tier]) tier++;
+  while (tier > 0 && cell.units < CONFIG.tierDown[tier - 1]) tier--;
+  cell.tier = tier;
+}
+
+function cellMax(cell) {
+  const base = typeOf(cell).max;
+  if (!cell.tierMax) return base;
+  const cap = CONFIG.tierMaxUnits[cell.tier || 0];
+  return cap == null ? base : Math.max(base, cap);
+}
+
+function cellProd(cell) {
+  const base = typeOf(cell).prod;
+  return cell.tierMax ? base * CONFIG.tierProdMul[cell.tier || 0] : base;
+}
+
+function cellRadius(cell) {
+  const base = typeOf(cell).radius;
+  return cell.tierMax ? base + CONFIG.tierRadiusAdd[cell.tier || 0] : base;
+}
+
+// Darf der Spieler Einheiten dieses Besitzers befehligen?
+// (im Testlabor: ALLE Parteien außer Neutral)
+function commandableOwner(owner) {
+  return owner === "player" || (LEVEL.sandbox && owner !== "neutral");
+}
+
 function controllable(cell) {
-  return cell.owner === "player" || (LEVEL.sandbox && cell.owner === "enemy");
+  return commandableOwner(cell.owner);
 }
 
 function maxSlots(cell) {
@@ -358,11 +168,12 @@ function hasActiveOut(cell) {
 // Punkte einer Zelle gutschreiben; was über das Maximum hinausgeht, wandert
 // in den Überschuss-Puffer (sofern die Zelle Tentakel zum Weiterleiten hat)
 function creditUnits(cell, amount) {
-  const room = typeOf(cell).max - cell.units;
+  const max = cellMax(cell);
+  const room = max - cell.units;
   if (amount <= room) {
     cell.units += amount;
   } else {
-    cell.units = typeOf(cell).max;
+    cell.units = max;
     if (hasActiveOut(cell)) {
       cell.boost = Math.min(CONFIG.overflowBuffer, cell.boost + (amount - room));
     }
@@ -373,9 +184,9 @@ function makeTentacle(src, dst) {
   const dx = dst.x - src.x, dy = dst.y - src.y;
   const d = Math.hypot(dx, dy);
   const ux = dx / d, uy = dy / d;
-  // Pfad von Zellrand zu Zellrand
-  const p0 = { x: src.x + ux * typeOf(src).radius, y: src.y + uy * typeOf(src).radius };
-  const p1 = { x: dst.x - ux * (typeOf(dst).radius + 3), y: dst.y - uy * (typeOf(dst).radius + 3) };
+  // Pfad von Zellrand zu Zellrand (aktuelle, ggf. ausgebaute Radien)
+  const p0 = { x: src.x + ux * cellRadius(src), y: src.y + uy * cellRadius(src) };
+  const p1 = { x: dst.x - ux * (cellRadius(dst) + 3), y: dst.y - uy * (cellRadius(dst) + 3) };
   const len = Math.hypot(p1.x - p0.x, p1.y - p0.y);
   return {
     src, dst,
@@ -389,6 +200,8 @@ function makeTentacle(src, dst) {
     boostGlow: 0,                // > 0, solange gerade Überschuss durchgeleitet wird (visuell)
     clashGlow: 0,                // > 0, solange die Spitze im Duell steht (visuell)
     pipeline: [],                // unterwegs befindliche Punkte-Pakete (siehe applyMass/update)
+    rate: 0,                     // geglätteter Durchsatz (Wert/Sek.) – treibt die Fluss-Geschwindigkeit
+    dotSpeed: CONFIG.flowDotSpeed,// aktuelle Fluss-/Ankunftsgeschwindigkeit (skaliert mit rate)
     dead: false
   };
 }
@@ -421,6 +234,16 @@ function tryCommand(src, dst) {
   return true;
 }
 
+// Bunker-Verteidigung wirkt nicht als harte Grenze, sondern skaliert den
+// Schaden pro übertragenem Punkt herunter (abhängig von der Höhe der
+// Verteidigung) – ein Bunker ist dadurch für schwache Angreifer (Wert <=
+// Verteidigung) nicht komplett unverwundbar, nur entsprechend langsamer zu
+// knacken. Bei bunkerDefense=1 halbiert das z.B. den Schaden; für Angreifer-
+// Zellen (Angriff 2) bleibt der bisherige Wert (2 / 2^1 = 1) unverändert.
+function bunkerReduced(attack) {
+  return attack / Math.pow(2, CONFIG.bunkerDefense);
+}
+
 // Masse trifft auf die Zielzelle (kontinuierlich oder von freien Stücken)
 function applyMass(t, mass) {
   const dst = t.dst;
@@ -429,18 +252,44 @@ function applyMass(t, mass) {
     creditUnits(dst, mass * t.heal); // Überschuss wird ggf. weitergeleitet
   } else {
     let per = t.attack;
-    if (dst.type === "bunker") per = Math.max(0, per - CONFIG.bunkerDefense);
+    if (dst.type === "bunker") per = bunkerReduced(per);
     damageCell(dst, mass * per, t.owner);
   }
 }
 
-// Schaden an einer Zelle anwenden. Fällt der Vorrat unter 0, wird die Zelle
-// SOFORT erobert – ihre noch ausgefahrenen Tentakel ziehen sich danach
-// automatisch ein und füllen den Vorrat für den NEUEN Besitzer auf
-// (siehe captureCell).
+// Schaden an einer Zelle anwenden.
+//   Eigene/gegnerische Zellen: Fällt der Vorrat unter 0, wird die Zelle
+//   SOFORT erobert – ihre noch ausgefahrenen Tentakel ziehen sich danach
+//   automatisch ein und füllen den Vorrat für den NEUEN Besitzer auf.
+//   NEUTRALE Zellen: erst Garnison brechen, dann AUFLADEN (siehe captureCharge).
 function damageCell(cell, dmg, byOwner) {
+  if (cell.owner === "neutral") { captureCharge(cell, dmg, byOwner); return; }
   cell.units -= dmg;
   if (cell.units < 0) captureCell(cell, byOwner);
+}
+
+// Neutrale Zelle: Garnison brechen, dann für den Angreifer aufladen.
+//   Phase 1 (chargeOwner == null): normaler Schaden bis der Vorrat auf 0 fällt.
+//     Der Überschuss startet die Ladung des Angreifers.
+//   Phase 2 (chargeOwner == byOwner): weiter aufladen – bei captureCharge
+//     Punkten wechselt die Zelle den Besitzer.
+//   Phase 2 (chargeOwner != byOwner): ein Konkurrent trägt die Fremdladung ab;
+//     erst wenn sie auf 0 sinkt, übernimmt er selbst die Ladung. Das gelingt
+//     nur, wenn er mehr Angriff/Sek. liefert als der bisherige Halter.
+function captureCharge(cell, dmg, byOwner) {
+  if (cell.chargeOwner == null || cell.chargeOwner !== byOwner) {
+    // eigene Garnison ODER fremde Ladung abtragen
+    cell.units -= dmg;
+    if (cell.units <= 0) {
+      cell.chargeOwner = byOwner;
+      cell.units = -cell.units; // Überschuss wird zur Start-Ladung
+      if (cell.units >= CONFIG.captureCharge) captureCell(cell, byOwner, CONFIG.captureCharge);
+    }
+  } else {
+    // für den aktuellen Halter weiter aufladen
+    cell.units += dmg;
+    if (cell.units >= CONFIG.captureCharge) captureCell(cell, byOwner, CONFIG.captureCharge);
+  }
 }
 
 // Gegen-Tentakel zwischen denselben zwei Zellen (andere Besitzer, aktiv)
@@ -471,10 +320,12 @@ function battleFeed(t, dt) {
   return fromBoost + fromUnits;
 }
 
-function captureCell(cell, newOwner) {
+function captureCell(cell, newOwner, startUnits) {
   cell.owner = newOwner;
-  cell.units = Math.min(typeOf(cell).max, Math.max(0, -cell.units));
+  cell.units = startUnits != null ? startUnits
+    : Math.min(cellMax(cell), Math.max(0, -cell.units));
   cell.boost = 0;
+  cell.chargeOwner = null; // Ladungszustand einer eroberten Neutralen zurücksetzen
   // Ausgefahrene Tentakel der eroberten Zelle ziehen sich automatisch ein.
   // Ihre zurückfließende Masse landet in der Zelle – und zählt damit für
   // den NEUEN Besitzer (die Beute des Eroberers).
@@ -483,7 +334,7 @@ function captureCell(cell, newOwner) {
       t.mode = "retract";
     }
   }
-  if (selected === cell && newOwner !== "player") selected = null;
+  if (selected === cell && !controllable(cell)) selected = null;
 }
 
 // Tentakel bei Länge L durchtrennen: hinteres Stück fließt zurück,
@@ -510,9 +361,9 @@ function cutTentacle(t, L) {
 function performCut(a, b, color) {
   let hit = false;
   for (const t of [...tentacles]) {
-    // nur befehligbare (im Testlabor: beide Parteien) Tentakel sind schneidbar
+    // nur befehligbare (im Testlabor: alle Parteien) Tentakel sind schneidbar
     if (t.dead || t.head - t.tail < 8) continue;
-    if (!(t.owner === "player" || (LEVEL.sandbox && t.owner === "enemy"))) continue;
+    if (!commandableOwner(t.owner)) continue;
     const q0 = pointAt(t, t.tail), q1 = pointAt(t, t.head);
     const u = segIntersect(a, b, q0, q1);
     if (u === null) continue;
@@ -550,10 +401,13 @@ function segIntersect(p0, p1, q0, q1) {
 function update(dt) {
   if (inMenu) return; // Level-Auswahl offen: Spiel pausiert
 
-  // Produktion – bei vollen Zellen wandert der Überschuss in den Puffer
+  // Produktion – bei vollen Zellen wandert der Überschuss in den Puffer.
+  // Zuvor die Ausbaustufe anhand des aktuellen Vorrats aktualisieren, damit
+  // Produktion/Kapazität dieses Ticks schon die passende Stufe verwenden.
   for (const c of cells) {
+    updateTier(c);
     if (c.owner !== "neutral" || CONFIG.neutralProduces) {
-      creditUnits(c, typeOf(c).prod * dt);
+      creditUnits(c, cellProd(c) * dt);
     }
     if (c.flash > 0) c.flash -= dt;
     if (c.denyFlash > 0) c.denyFlash -= dt;
@@ -587,7 +441,7 @@ function update(dt) {
     // diesem Tick produziert – die Produktion wird gleichmäßig auf alle
     // angedockten Tentakel aufgeteilt. Der Vorrat bleibt dadurch stabil;
     // nur das Ausfahren (grow) und der Überschuss-Puffer dürfen ihn senken.
-    c._flowBudget = c._flowOut > 0 ? (typeOf(c).prod * dt) / c._flowOut : 0;
+    c._flowBudget = c._flowOut > 0 ? (cellProd(c) * dt) / c._flowOut : 0;
   }
 
   // Duelle austragen: beide Seiten speisen Kraft aus Produktion und
@@ -602,27 +456,69 @@ function update(dt) {
 
     // Kraft beider Seiten: Nachschub × Angriffswert, plus Heimvorteil.
     // Der Heimvorteil drückt die Front Richtung Korridor-MITTE – nahe der
-    // eigenen Zelle kämpft es sich leichter.
-    const bias = CONFIG.clashHomefield * (0.5 - t.head / t.len) * dt;
-    const net = battleFeed(t, dt) * t.attack - battleFeed(o, dt) * o.attack + bias;
+    // eigenen Zelle kämpft es sich leichter. ABER: er zählt nur für Zellen mit
+    // echtem gespeichertem Vorrat. Eine LEERE Zelle (Vorrat ~0, egal ob sie
+    // ihre Produktion nur durchreicht) kann keine Front halten – sonst blockiert
+    // ihr 1px-Stummel einen versorgten Angreifer dauerhaft und die 0-Zelle wird
+    // nie erobert. Der Vorrat wird VOR battleFeed abgegriffen (das darunter
+    // Vorrat verbraucht), damit die Prüfung den Zustand zu Beginn des Duells sieht.
+    const reserveT = t.src.units + t.src.boost;
+    const reserveO = o.src.units + o.src.boost;
+    const homeAdv = (x, reserve) =>
+      reserve > CONFIG.clashHoldMin ? CONFIG.clashHomefield * (0.5 - x.head / x.len) * dt : 0;
+    let net = battleFeed(t, dt) * t.attack + homeAdv(t, reserveT)
+            - battleFeed(o, dt) * o.attack - homeAdv(o, reserveO);
+
+    // Patt-Auflösung bei ZWEI erschöpften Zellen: Sind beide "leer"
+    // (Reserve <= clashHoldMin), liefert battleFeed nur noch winziges,
+    // schwankendes Produktions-Rauschen (~±0.01) – net pendelt um 0, die Front
+    // zittert ewig um die Mitte und KEINE Zelle wird je erobert (der beobachtete
+    // Bug: beide Zellen dauerhaft bei ~0). In diesem Zustand kann ohnehin keine
+    // Seite eine Front halten (homeAdv ist für beide schon 0), also entscheidet
+    // die Nähe zum Andocken: die Tentakel mit kürzerer Restdistanz (len-head)
+    // erhält einen klaren Vorstoß, der das Rauschen dominiert. Da der Verlierer
+    // immer Boden räumt (siehe unten), entfernt er sich dadurch nur weiter ->
+    // selbstverstärkend, das Duell löst sich auf und der Sieger dockt an und
+    // erobert. Greift NUR wenn BEIDE erschöpft sind – ein realer Nachschub-
+    // Vorteil (mind. eine versorgte Zelle) bleibt unangetastet.
+    if (reserveT <= CONFIG.clashHoldMin && reserveO <= CONFIG.clashHoldMin) {
+      const remT = t.len - t.head, remO = o.len - o.head;
+      if (Math.abs(remT - remO) > 0.5) {
+        net = (remT < remO ? 1 : -1) * (CONFIG.clashBreak / CONFIG.lengthPerUnit) * dt;
+      }
+    }
 
     if (net !== 0) {
       const winner = net > 0 ? t : o;
       const loser  = net > 0 ? o : t;
-      // Der Gewinner rückt aktiv nach und bezahlt den gewonnenen Boden wie
-      // normales Wachstum – ohne Substanz kein Vormarsch
-      let push = Math.min(
+      // Der Verlierer WEICHT immer (räumt Boden); der Gewinner rückt getrennt
+      // davon nach, soweit Platz UND Substanz reichen. Diese ENTKOPPLUNG ist der
+      // Kern des Fixes: früher zog ein einziger Vorstoß-Wert Verlierer und
+      // Gewinner gemeinsam, gedeckelt durch (a) freien Korridor vor dem Gewinner
+      // und (b) dessen Vorrat. Ein Angreifer, der sein Ziel schon erreicht hatte
+      // (head == len → kein Platz) ODER dessen Quelle leer war, konnte damit den
+      // letzten 1px-Stummel des Gegners NICHT wegdrücken – zwei erschöpfte Zellen
+      // froren dauerhaft ein, die angegriffene 0-Zelle wurde nie erobert.
+      // Jetzt: Rückzug immer (an den battleFeed-gedeckelten Netto-Vorteil
+      // gekoppelt), Nachrücken kostet wie bisher Vorrat – kann der Gewinner es
+      // sich nicht leisten, bleibt eine Lücke, die zum Andocken/Töten reicht.
+      const retreat = Math.min(
         Math.abs(net) * CONFIG.lengthPerUnit,
-        Math.max(0, winner.src.units + winner.src.boost) * CONFIG.lengthPerUnit,
-        loser.head - loser.tail,
-        winner.len - winner.head);
-      if (push > 0) {
-        const cost = push / CONFIG.lengthPerUnit;
-        const fromBoost = Math.min(winner.src.boost, cost);
-        winner.src.boost -= fromBoost;
-        winner.src.units -= (cost - fromBoost);
-        winner.head += push;
-        loser.head = Math.max(loser.tail, loser.head - push);
+        loser.head - loser.tail);
+      if (retreat > 0) {
+        loser.head = Math.max(loser.tail, loser.head - retreat);
+        const room = Math.min(retreat, winner.len - winner.head);
+        if (room > 0) {
+          const affordable = Math.min(room,
+            Math.max(0, winner.src.units + winner.src.boost) * CONFIG.lengthPerUnit);
+          if (affordable > 0) {
+            const cost = affordable / CONFIG.lengthPerUnit;
+            const fromBoost = Math.min(winner.src.boost, cost);
+            winner.src.boost -= fromBoost;
+            winner.src.units -= (cost - fromBoost);
+            winner.head += affordable;
+          }
+        }
         if (loser.mode === "flow") loser.mode = "grow"; // vom Ziel weggedrückt
         if (loser.head - loser.tail < 0.5) loser.dead = true; // Tentakel zerstört
       }
@@ -681,20 +577,21 @@ function update(dt) {
       const want = CONFIG.transferRate * dt;
       const hostile = dst.owner !== t.owner;
       let per = t.attack;
-      if (hostile && dst.type === "bunker") per = Math.max(0, per - CONFIG.bunkerDefense);
+      if (hostile && dst.type === "bunker") per = bunkerReduced(per);
 
-      if (!hostile || per > 0) { // Bunker kann Angriffe wirkungslos machen -> Fluss pausiert
+      let total = 0;
+      if (!hostile || per > 0) {
         const base = Math.min(want, t.src._flowBudget, Math.max(0, t.src.units));
         // Puffer-Durchleitung ratenbegrenzt (gleichmäßiger Strom statt
         // schlagartiger Entladung des ganzen Puffers in einem Tick)
         const share = Math.min(t.src.boost, t.src._boostShare, want);
-        let total = base + share;
+        total = base + share;
 
         if (!hostile && !hasActiveOut(dst)) {
           // Heilen: Ziel voll und ohne eigene Tentakel? Dann nur bis zum
           // Maximum pumpen (nichts verschwenden). Kann das Ziel weiterleiten,
           // fließt der Rest in dessen Überschuss-Puffer.
-          const room = typeOf(dst).max - dst.units;
+          const room = cellMax(dst) - dst.units;
           total = Math.min(total, room / t.heal);
         }
 
@@ -703,11 +600,22 @@ function update(dt) {
           t.src.boost -= fromBoost;
           t.src.units -= (total - fromBoost);
           if (fromBoost > 0.0001) t.boostGlow = 0.35;
-          // Laufzeit bis zum Ziel = Länge der Tentakel / Fluss-Geschwindigkeit
-          // (dieselbe Geschwindigkeit, mit der die Fluss-Punkte animiert werden)
-          t.pipeline.push({ amount: total, remaining: t.len / CONFIG.flowDotSpeed });
+          // Laufzeit bis zum Ziel = Länge / Fluss-Geschwindigkeit (t.dotSpeed).
+          // travel merkt sich die Anfangslaufzeit, damit die Animation die
+          // "Front" exakt abbilden kann, auch wenn dotSpeed später variiert.
+          t.pipeline.push({ amount: total, remaining: t.len / t.dotSpeed, travel: t.len / t.dotSpeed });
         }
       }
+
+      // Fluss-Geschwindigkeit an den TATSÄCHLICHEN Durchsatz koppeln, damit
+      // die Animation widerspiegelt, wie viel Angriff/Heilung pro Sekunde
+      // gerade fließt: value/Sek. = übertragene Masse × Wert pro Punkt.
+      // Geglättet (EMA), damit die Punkte nicht zappeln; nie langsamer als
+      // die Basisgeschwindigkeit, stärkere Ströme sichtbar schneller.
+      const value = hostile ? per : t.heal;
+      const inst = (total / dt) * value;
+      t.rate += (inst - t.rate) * Math.min(1, dt * 6);
+      t.dotSpeed = CONFIG.flowDotSpeed * (1 + Math.min(1.5, t.rate / 3));
 
     } else if (t.mode === "retract") {
       // Einziehen: Masse fließt zur Quelle zurück (Überschuss wird weitergeleitet)
@@ -740,69 +648,20 @@ function update(dt) {
   const nowMs = performance.now();
   cutTrail = cutTrail.filter(p => nowMs - p.t < 350);
 
-  // Gegner-KI takten (im Testlabor steuert der Spieler beide Seiten selbst)
+  // KI-Fraktionen takten, jede mit eigenem Intervall und Profil
+  // (im Testlabor steuert der Spieler alle Seiten selbst)
   if (!gameOver && !LEVEL.sandbox) {
-    aiTimer += dt;
-    if (aiTimer >= CONFIG.aiInterval) {
-      aiTimer = 0;
-      aiThink();
+    for (const s of aiStates) {
+      if (!cells.some(c => c.owner === s.owner)) continue; // Fraktion ausgelöscht
+      s.timer += dt;
+      if (s.timer >= s.profile.interval) {
+        s.timer = 0;
+        aiThink(s.owner, s.profile);
+      }
     }
   }
 
   checkVictory();
-}
-
-/* ======================================================================
-   GEGNER-KI
-   ====================================================================== */
-
-function effDamagePerUnit(srcCell, targetCell) {
-  let dmg = typeOf(srcCell).attack;
-  if (targetCell.type === "bunker") dmg = Math.max(0, dmg - CONFIG.bunkerDefense);
-  return dmg;
-}
-
-function aiThink() {
-  // 1) Stärkste Zelle mit freiem Slot fährt eine Tentakel aus:
-  //    Ziel = schwächste, möglichst nahe fremde Zelle, der sie schaden kann
-  const sources = cells
-    .filter(c => c.owner === "enemy" && Math.floor(c.units) >= CONFIG.aiMinUnits)
-    .sort((a, b) => b.units - a.units);
-
-  for (const src of sources) {
-    const out = outgoing(src);
-    if (out.length >= maxSlots(src)) continue;
-
-    let targets = cells.filter(c =>
-      c !== src && c.owner !== "enemy" &&
-      !out.some(t => t.dst === c) &&
-      effDamagePerUnit(src, c) > 0);
-    if (targets.length) {
-      // Bewertung: wenige Punkte und kurze Distanz bevorzugen
-      targets.sort((a, b) =>
-        (a.units + Math.hypot(a.x - src.x, a.y - src.y) * 0.05) -
-        (b.units + Math.hypot(b.x - src.x, b.y - src.y) * 0.05));
-      tryCommand(src, targets[0]);
-      return;
-    }
-  }
-
-  // 2) Fallback: stärkste Zelle verstärkt die schwächste eigene Zelle
-  for (const src of sources) {
-    const out = outgoing(src);
-    if (out.length >= maxSlots(src)) continue;
-    const own = cells.filter(c =>
-      c !== src && c.owner === "enemy" && c.units < src.units - 8 &&
-      !out.some(t => t.dst === c) &&
-      // Einbahn-Regel: keine Gegen-Tentakel zu einer Zelle, die schon zu uns verbindet
-      !tentacles.some(t => !t.dead && t.src === c && t.dst === src &&
-        (t.mode === "grow" || t.mode === "flow")));
-    if (own.length) {
-      own.sort((a, b) => a.units - b.units);
-      tryCommand(src, own[0]);
-      return;
-    }
-  }
 }
 
 /* ======================================================================
@@ -817,22 +676,11 @@ function checkVictory() {
     tentacles.some(t => !t.dead && t.owner === owner && t.head - t.tail > 1);
 
   const playerAlive = alive("player");
-  const enemyAlive = alive("enemy");
-  if (playerAlive && enemyAlive) return;
+  const anyAiAlive = aiStates.some(s => alive(s.owner));
+  if (playerAlive && anyAiAlive) return;
 
   gameOver = true;
-  const title = document.getElementById("overlayTitle");
-  const text = document.getElementById("overlayText");
-  if (playerAlive) {
-    title.textContent = "Sieg";
-    title.style.color = OWNER_COLOR.player;
-    text.textContent = "Alle gegnerischen Zellen wurden erobert.";
-  } else {
-    title.textContent = "Niederlage";
-    title.style.color = OWNER_COLOR.enemy;
-    text.textContent = "Deine letzte Zelle ist gefallen.";
-  }
-  document.getElementById("overlay").classList.add("show");
+  showGameEnd(playerAlive); // Overlay-Inhalt und Kampagnen-Fortschritt: ui.js
 }
 
 /* ======================================================================
@@ -848,7 +696,7 @@ function toWorld(e) {
 
 function pickCell(w) {
   for (const c of cells) {
-    const r = typeOf(c).radius + 12;
+    const r = cellRadius(c) + 12;
     if (Math.hypot(w.x - c.x, w.y - c.y) <= r) return c;
   }
   return null;
@@ -917,46 +765,6 @@ canvas.addEventListener("pointerup", e => {
 canvas.addEventListener("pointercancel", () => { dragSource = null; cutting = false; cutLast = null; cutArmed = false; });
 canvas.addEventListener("contextmenu", e => { e.preventDefault(); selected = null; dragSource = null; });
 window.addEventListener("keydown", e => { if (e.key === "Escape") { selected = null; dragSource = null; } });
-
-document.getElementById("restart").addEventListener("click", resetGame);
-document.getElementById("overlayRestart").addEventListener("click", resetGame);
-document.getElementById("btnLevels").addEventListener("click", showLevelMenu);
-
-/* ======================================================================
-   LEVEL-AUSWAHL
-   ====================================================================== */
-
-function showLevelMenu() {
-  inMenu = true;
-  document.getElementById("overlay").classList.remove("show");
-  document.getElementById("levelSelect").classList.remove("hidden");
-}
-
-function startLevel(index) {
-  LEVEL = LEVELS[index];
-  makeStars();
-  resize();
-  resetGame();
-  // Hinweiszeile ans Level anpassen
-  const base = "Von eigener Zelle zu einem Ziel ziehen: Tentakel ausfahren (kostet Punkte) · " +
-    "Ziel erneut anklicken: Tentakel einziehen · Auf freier Fläche über eine EIGENE Tentakel wischen: durchschneiden";
-  document.getElementById("hint").textContent =
-    (LEVEL.sandbox ? "TESTLABOR – du steuerst Blau UND Rot. " : "") + base;
-  inMenu = false;
-  document.getElementById("levelSelect").classList.add("hidden");
-}
-
-function buildLevelMenu() {
-  const wrap = document.getElementById("levelCards");
-  LEVELS.forEach((lv, i) => {
-    const card = document.createElement("button");
-    card.className = "level-card";
-    card.type = "button";
-    card.innerHTML = `<span class="tag">${lv.tag}</span><h3>${lv.name}</h3><p>${lv.desc}</p>`;
-    card.addEventListener("click", () => startLevel(i));
-    wrap.appendChild(card);
-  });
-}
 
 /* ======================================================================
    RENDERING
@@ -1090,10 +898,11 @@ function drawTentacle(t, now) {
     ctx.restore();
   }
 
-  // Fluss-Punkte: vorwärts bei flow/free, rückwärts bei retract.
-  // Auch im DUELL (clashGlow) strömen Punkte sichtbar zur Front.
+  // Fluss-Punkte für Rückzug/freies Stück/Duell-Front: hier gibt es keine
+  // Pipeline (die Masse IST die Länge des Segments), daher weiterhin ein
+  // gleichmäßiger dekorativer Strom über die sichtbare Länge.
   // Wird gerade Überschuss durchgeleitet, fließt ein zweiter, dichterer Strom.
-  if (!reducedMotion && (t.mode === "flow" || t.mode === "retract" || t.mode === "free" || t.clashGlow > 0)) {
+  if (!reducedMotion && (t.mode === "retract" || t.mode === "free" || t.clashGlow > 0)) {
     const dir = t.mode === "retract" ? -1 : 1;
     const boosted = t.boostGlow > 0;
     const spacing = 26;
@@ -1113,6 +922,34 @@ function drawTentacle(t, now) {
           ctx.fill();
         }
       }
+    }
+  }
+
+  // Fluss-Punkte für angedockte, tatsächlich übertragende Tentakel: Es wird
+  // JEDEN Frame ein neues Punkte-Paket in die Pipeline gelegt (bei 60 FPS
+  // ~60 Pakete/Sekunde) – ein Punkt PRO Paket würde also zu einer
+  // durchgehenden Fläche verschmelzen. Stattdessen zeigt das älteste Paket
+  // (t.pipeline[0], am nächsten an der Zustellung) nur die aktuelle
+  // "Front" des Flusses an; sichtbare, klar getrennte Punkte werden im
+  // gewohnten Abstand von der Quelle bis zu dieser Front gezeichnet – die
+  // Front wächst dabei genauso schnell, wie die echten Pakete unterwegs
+  // sind, und erreicht das Ziel nicht sofort über die ganze Strecke.
+  if (!reducedMotion && t.pipeline.length) {
+    const lead = t.pipeline[0];
+    const travelTime = lead.travel || (t.len / CONFIG.flowDotSpeed);
+    const boosted = t.boostGlow > 0;
+    const leadFrac = 1 - Math.max(0, Math.min(1, lead.remaining / travelTime));
+    const leadL = t.tail + leadFrac * (t.head - t.tail);
+    const spacing = 26;
+    // Punkt-Geschwindigkeit = tatsächliche Fluss-Geschwindigkeit der Tentakel
+    const dotSpeed = (t.dotSpeed || CONFIG.flowDotSpeed) * (boosted ? 1.5 : 1);
+    const shift = (now / 1000 * dotSpeed) % spacing;
+    ctx.fillStyle = hexToRgba("#ffffff", boosted ? 0.95 : 0.8);
+    for (let L = t.tail + shift; L < leadL; L += spacing) {
+      const o = wob(L);
+      ctx.beginPath();
+      ctx.arc(t.p0.x + t.ux * L + nx * o, t.p0.y + t.uy * L + ny * o, boosted ? 2.1 : 1.7, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 }
@@ -1161,8 +998,8 @@ function draw(now) {
     ctx.restore();
 
     // Voraussichtliche Wachstumskosten anzeigen
-    const d = Math.hypot(tx - dragSource.x, ty - dragSource.y) - typeOf(dragSource).radius
-      - (snap ? typeOf(hovered).radius : 0);
+    const d = Math.hypot(tx - dragSource.x, ty - dragSource.y) - cellRadius(dragSource)
+      - (snap ? cellRadius(hovered) : 0);
     if (d > 20) {
       const cost = Math.ceil(d / CONFIG.lengthPerUnit);
       ctx.font = '600 13px "Segoe UI", system-ui, sans-serif';
@@ -1210,18 +1047,50 @@ function draw(now) {
 
   // Zellen
   for (const c of cells) {
-    const t = typeOf(c);
     const color = OWNER_COLOR[c.owner];
+    const r = cellRadius(c);          // aktueller (ggf. ausgebauter) Radius
+    // Wird eine neutrale Zelle gerade aufgeladen, füllt sich der Ring in der
+    // Farbe des Eroberers bis captureCharge – sonst normaler Füllstand.
+    const charging = c.owner === "neutral" && c.chargeOwner;
+    const ringColor = charging ? OWNER_COLOR[c.chargeOwner] : color;
+    const frac = charging
+      ? Math.max(0, Math.min(1, c.units / CONFIG.captureCharge))
+      : Math.max(0, Math.min(1, c.units / cellMax(c)));
 
-    drawCellShape(ctx, c.type, c.x, c.y, t.radius, color, true);
+    drawCellShape(ctx, c.type, c.x, c.y, r, color, true);
 
-    // Füllstands-Ring (Punkte / Maximum)
-    const frac = Math.max(0, Math.min(1, c.units / t.max));
+    // Ausbaustufe: kleine Ringe direkt am Zellrand als Rang-Anzeige
+    if (c.tier > 0) {
+      for (let s = 0; s < c.tier; s++) {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, r + 2 + s * 2.4, 0, Math.PI * 2);
+        ctx.strokeStyle = hexToRgba(color, 0.28);
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+      }
+    }
+
+    // Füllstands- bzw. Lade-Ring
     ctx.beginPath();
-    ctx.arc(c.x, c.y, t.radius + 7, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
-    ctx.strokeStyle = hexToRgba(color, 0.55);
-    ctx.lineWidth = 3;
+    ctx.arc(c.x, c.y, r + 7, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+    ctx.strokeStyle = hexToRgba(ringColor, charging ? 0.9 : 0.55);
+    ctx.lineWidth = charging ? 4 : 3;
     ctx.stroke();
+
+    // Ladezustand einer umkämpften Neutralen zusätzlich mit rotierendem
+    // Strichring in der Farbe des Eroberers markieren (klar sichtbar, wer
+    // sie gerade übernimmt).
+    if (charging) {
+      ctx.save();
+      ctx.setLineDash([4, 6]);
+      if (!reducedMotion) ctx.lineDashOffset = -(now / 60) % 20;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, r + 12, 0, Math.PI * 2);
+      ctx.strokeStyle = hexToRgba(ringColor, 0.7);
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // Auswahl-Ring
     if (c === selected) {
@@ -1229,8 +1098,8 @@ function draw(now) {
       ctx.setLineDash([5, 5]);
       if (!reducedMotion) ctx.lineDashOffset = -(now / 40) % 10;
       ctx.beginPath();
-      ctx.arc(c.x, c.y, t.radius + 13, 0, Math.PI * 2);
-      ctx.strokeStyle = color; // Auswahlring in Besitzerfarbe (Testlabor: auch Rot)
+      ctx.arc(c.x, c.y, r + 13, 0, Math.PI * 2);
+      ctx.strokeStyle = color; // Auswahlring in Besitzerfarbe (Testlabor: alle Parteien)
       ctx.lineWidth = 2;
       ctx.stroke();
       ctx.restore();
@@ -1240,7 +1109,7 @@ function draw(now) {
     if (c.flash > 0) {
       const k = 1 - c.flash / 0.3;
       ctx.beginPath();
-      ctx.arc(c.x, c.y, t.radius + 8 + k * 14, 0, Math.PI * 2);
+      ctx.arc(c.x, c.y, r + 8 + k * 14, 0, Math.PI * 2);
       ctx.strokeStyle = hexToRgba(color, 0.5 * (1 - k));
       ctx.lineWidth = 2;
       ctx.stroke();
@@ -1248,14 +1117,14 @@ function draw(now) {
     // Abgelehnt-Blitz (kein Slot frei / zu wenige Punkte)
     if (c.denyFlash > 0) {
       ctx.beginPath();
-      ctx.arc(c.x, c.y, t.radius + 10, 0, Math.PI * 2);
+      ctx.arc(c.x, c.y, r + 10, 0, Math.PI * 2);
       ctx.strokeStyle = hexToRgba("#ff5964", Math.min(1, c.denyFlash * 2.2));
       ctx.lineWidth = 3;
       ctx.stroke();
     }
 
     // Punkte-Zähler
-    ctx.font = `700 ${Math.round(t.radius * 0.62)}px "Segoe UI", system-ui, sans-serif`;
+    ctx.font = `700 ${Math.round(r * 0.62)}px "Segoe UI", system-ui, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#eaf2fa";
@@ -1266,7 +1135,7 @@ function draw(now) {
     if (controllable(c)) {
       const total = maxSlots(c);
       const used = outgoing(c).length;
-      const y = c.y + t.radius + 16;
+      const y = c.y + r + 16;
       const x0 = c.x - ((total - 1) * 9) / 2;
       for (let i = 0; i < total; i++) {
         ctx.beginPath();
@@ -1285,43 +1154,6 @@ function draw(now) {
 }
 
 /* ======================================================================
-   HUD & LEGENDE
-   ====================================================================== */
-
-function updateHud() {
-  document.getElementById("countPlayer").textContent = cells.filter(c => c.owner === "player").length;
-  document.getElementById("countEnemy").textContent = cells.filter(c => c.owner === "enemy").length;
-}
-
-function buildLegend() {
-  const legend = document.getElementById("legend");
-  const dpr = window.devicePixelRatio || 1;
-  const info = {
-    normal:   "Produktion 1/s · Max 50",
-    healer:   "Heilung +2",
-    attacker: "Angriff −2",
-    factory:  "Produktion 2/s · Max 25",
-    bunker:   "Max 100 · Schaden −1 pro Punkt"
-  };
-  for (const key of Object.keys(CELL_TYPES)) {
-    const item = document.createElement("div");
-    item.className = "legend-item";
-    const cv = document.createElement("canvas");
-    const size = 30;
-    cv.width = size * dpr; cv.height = size * dpr;
-    cv.style.width = size + "px"; cv.style.height = size + "px";
-    const c2 = cv.getContext("2d");
-    c2.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawCellShape(c2, key, size / 2, size / 2 + (key === "healer" ? 2 : 0), key === "healer" ? 8.5 : 10, "#8593a1", false);
-    item.appendChild(cv);
-    const label = document.createElement("span");
-    label.innerHTML = `<strong style="color:var(--text)">${CELL_TYPES[key].label}</strong> &middot; ${info[key]}`;
-    item.appendChild(label);
-    legend.appendChild(item);
-  }
-}
-
-/* ======================================================================
    HAUPTSCHLEIFE
    ====================================================================== */
 
@@ -1333,12 +1165,3 @@ function frame(now) {
   updateHud();
   requestAnimationFrame(frame);
 }
-
-makeStars();
-resize();
-buildLegend();
-buildLevelMenu();
-resetGame();      // Hintergrund hinter der Level-Auswahl
-showLevelMenu();  // Start in der Level-Auswahl
-requestAnimationFrame(frame);
-</script>

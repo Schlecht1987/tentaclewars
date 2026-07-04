@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a111c">
+  <title>Zellkrieg – Tentacle-Wars-Prototyp</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Zellkrieg">
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div class="hud-top">
+  <h1>Zell<span>krieg</span></h1>
+  <div class="status">
+    <span id="factionChips" style="display:flex;gap:14px;align-items:center;"></span>
+    <button id="restart" type="button">Neustart</button>
+    <button id="btnLevels" type="button">Level</button>
+    <button id="btnDebug" type="button" title="Debug-Zustand herunterladen (auch: F9)">🐞</button>
+  </div>
+</div>
+
+<div class="hint" id="hint">
+  Von eigener Zelle zu einem Ziel ziehen: Tentakel ausfahren (kostet Punkte) &middot;
+  Ziel erneut anklicken: Tentakel einziehen &middot;
+  Auf freier Fl&auml;che &uuml;ber eine EIGENE Tentakel wischen: durchschneiden
+</div>
+
+<div id="levelSelect" class="menu-overlay">
+  <div class="menu-inner">
+    <h2>Zell<span>krieg</span></h2>
+    <p class="sub">KAMPAGNE &ndash; 50 LEVEL</p>
+    <div id="campaignGrid"></div>
+    <div class="menu-actions">
+      <button id="btnRandom" class="level-card" type="button">
+        <span class="tag">Zufall</span>
+        <h3>Zufallsspiel</h3>
+        <p>Zuf&auml;llig erzeugte Karte gegen 1&ndash;3 KIs. Schwierigkeit, Kartengr&ouml;&szlig;e, Zelltypen und Fairness frei einstellbar.</p>
+      </button>
+      <button id="btnSandbox" class="level-card" type="button">
+        <span class="tag">Sandbox</span>
+        <h3>Testlabor</h3>
+        <p>Alle f&uuml;nf Zelltypen auf beiden Seiten. Du steuerst ALLE Parteien &ndash; keine KI, kein Spielende. Zum Ausprobieren der Mechaniken.</p>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="randomSetup" class="menu-overlay hidden">
+  <div class="menu-inner">
+    <h2>Zufalls<span>spiel</span></h2>
+    <p class="sub">EIGENSCHAFTEN W&Auml;HLEN</p>
+    <div id="randomOptions"></div>
+    <div class="seed-row">
+      <span id="seedLabel">Karte #0</span>
+      <button id="btnReroll" type="button">Neu w&uuml;rfeln</button>
+    </div>
+    <div class="menu-actions">
+      <button id="btnRandomStart" class="primary-btn" type="button">Starten</button>
+      <button id="btnRandomBack" class="ghost-btn" type="button">Zur&uuml;ck</button>
+    </div>
+  </div>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<div id="overlay">
+  <h2 id="overlayTitle">Sieg</h2>
+  <p id="overlayText"></p>
+  <div class="overlay-buttons">
+    <button id="overlayNext" class="primary-btn hidden" type="button">N&auml;chstes Level</button>
+    <button id="overlayRestart" class="ghost-btn" type="button">Noch einmal</button>
+    <button id="overlayMenu" class="ghost-btn" type="button">Levelauswahl</button>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/rng.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/mapgen.js"></script>
+<script src="js/campaign.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/debug.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
