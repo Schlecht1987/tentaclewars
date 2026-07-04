@@ -15,8 +15,8 @@ makeStars();
 resize();
 window.addEventListener("resize", resize);
 // Fallback für Geräte, bei denen "resize" bei einer Drehung verspätet oder
-// gar nicht feuert (bekannte iOS-Safari-Eigenart) – betrifft direkt die
-// Hochformat-Drehung des UI (siehe #appRoot in styles.css).
+// gar nicht feuert (bekannte iOS-Safari-Eigenart) – nötig, damit resize()
+// bei Quer-/Hochformat-Wechsel view.portrait neu setzt (siehe game.js).
 window.addEventListener("orientationchange", resize);
 
 buildLegend();

@@ -6,32 +6,19 @@
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-const appRoot = document.getElementById("appRoot");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
 const portraitQuery = window.matchMedia("(orientation: portrait)");
 
-// Hochformat am Touch-Gerät: #appRoot wird dann (sofern nicht per Knopf
-// abgeschaltet, siehe rotatePreference) um 90° gedreht, damit das
-// querformatige Spielfeld den Bildschirm ausfüllt statt winzig verkleinert
-// zu werden. resize()/toWorld() rechnen Canvas-Größe bzw. Zeigerkoordinaten
-// dafür passend um.
-function isRotatedView() {
-  return coarsePointer && portraitQuery.matches && rotatePreference;
-}
-
-const ROTATE_PREF_KEY = "zellkrieg.rotatePortrait.v1";
-function loadRotatePreference() {
-  try {
-    const raw = localStorage.getItem(ROTATE_PREF_KEY);
-    return raw === null ? true : raw === "1"; // Standard: gedreht (bisheriges Verhalten)
-  } catch (e) { return true; }
-}
-let rotatePreference = loadRotatePreference();
-function setRotatePreference(on) {
-  rotatePreference = on;
-  try { localStorage.setItem(ROTATE_PREF_KEY, on ? "1" : "0"); } catch (e) { /* privater Modus o.ä. */ }
-  resize();
+// Hochformat: Das Spielfeld ist querformatig angelegt (LEVEL.width > height).
+// Ist der sichtbare Viewport hochkant, wird das Feld IM Canvas um 90° gedreht
+// gezeichnet, damit es einen aufrecht gehaltenen (Handy-)Bildschirm
+// formatfüllend nutzt statt winzig verkleinert in der Mitte zu liegen. Die
+// Drehung steckt allein in der View-Transform (draw()) bzw. deren Umkehrung
+// (toWorld()); HUD, Menüs und Canvas bleiben normal ausgerichtet - kein
+// DOM-Dreh, kein Umschalter. resize() setzt view.portrait entsprechend.
+function isPortraitView() {
+  return portraitQuery.matches;
 }
 
 let LEVEL = null;     // aktuell aktives Level (wird von ui.js/main.js gesetzt)
@@ -60,7 +47,7 @@ let lastTime = 0;
 let debugMode = false;  // Balance-Debug-Anzeige (Toggle über 📊-Knopf / F8)
 let fpsSmooth = 0;      // geglättete Bildrate = Ticks/Sek. der Simulation
 
-let view = { scale: 1, offX: 0, offY: 0 };
+let view = { scale: 1, offX: 0, offY: 0, portrait: false };
 
 /* ======================================================================
    INITIALISIERUNG
@@ -104,73 +91,75 @@ function makeStars() {
 
 function resize() {
   const dpr = window.devicePixelRatio || 1;
-
-  // Bei gedrehter Ansicht (Hochformat-Handy, siehe #appRoot in styles.css)
-  // sind Breite/Höhe des Bildschirms vertauscht: die "logische" Breite, in
-  // der Canvas & UI jetzt tatsächlich liegen, entspricht der Bildschirmhöhe
-  // und umgekehrt. Ab hier rechnet alles nur noch mit vw/vh, nie mehr
-  // direkt mit window.innerWidth/innerHeight.
-  const rotated = isRotatedView();
-  const vw = rotated ? window.innerHeight : window.innerWidth;
-  const vh = rotated ? window.innerWidth : window.innerHeight;
-
-  // #appRoot-Drehung wird hier statt per CSS-Prozentwerten (100vh/100vw)
-  // gesetzt: auf manchen mobilen Browsern weicht die vh/vw-Einheit vom
-  // tatsächlich sichtbaren Viewport ab (z.B. wenn die Adressleiste
-  // ein-/ausblendet), wodurch die gedrehte Box nicht mehr exakt zur
-  // Canvas-Größe passt und das UI "geteilt"/verschoben wirkt. Inline-Styles
-  // aus denselben window.innerWidth/innerHeight-Werten, die auch die
-  // Canvas-Größe bestimmen, garantieren, dass beide immer exakt
-  // übereinstimmen. Inline-Styles überschreiben dabei die CSS-Regel in
-  // styles.css (die als Fallback stehen bleibt, falls JS mal nicht läuft).
-  if (rotated) {
-    appRoot.style.position = "fixed";
-    appRoot.style.top = "0";
-    appRoot.style.left = window.innerWidth + "px";
-    appRoot.style.width = window.innerHeight + "px";
-    appRoot.style.height = window.innerWidth + "px";
-    appRoot.style.transformOrigin = "0 0";
-    appRoot.style.transform = "rotate(90deg)";
-  } else {
-    // Explizit auf "normal" setzen (nicht nur die Inline-Styles leeren!):
-    // Die CSS-Fallback-Regel in styles.css greift bei Hochformat+Touch immer
-    // per @media-Query, unabhängig von rotatePreference - würde man die
-    // Inline-Styles nur leeren, käme diese Regel wieder zum Zug und die
-    // Drehung ließe sich über den 🔄-Knopf gar nicht abschalten (leere
-    // Inline-Styles = "keine Deklaration", nicht "Regel überschreiben").
-    appRoot.style.position = "static";
-    appRoot.style.top = "";
-    appRoot.style.left = "";
-    appRoot.style.width = "";
-    appRoot.style.height = "";
-    appRoot.style.transformOrigin = "";
-    appRoot.style.transform = "none";
-  }
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
 
   canvas.width = Math.round(vw * dpr);
   canvas.height = Math.round(vh * dpr);
   canvas.style.width = vw + "px";
   canvas.style.height = vh + "px";
 
-  // Auf kleinen Bildschirmen (Handy quer) sind HUD/Legende ausgeblendet
-  // bzw. kompakt – dann reicht weniger Rand für mehr Spielfläche. Unten ist
-  // dort (Legende + Hinweiszeile per CSS ausgeblendet, siehe styles.css)
-  // fast nichts mehr zu reservieren, oben bleibt die HUD-Zeile bestehen –
+  // Auf kleinen/hochkanten Bildschirmen sind Legende + Hinweiszeile per
+  // CSS-Media-Query ausgeblendet (max-width:700px / max-height:520px) – dann
+  // reicht unten fast kein Rand mehr. Oben bleibt die HUD-Zeile bestehen;
   // daher asymmetrisch statt oben=unten, sonst verschenken wir Spielfläche.
-  const small = vh < 500;
-  const padTop = small ? 30 : 70;
-  const padBottom = small ? 10 : 70;
+  // Hochformat: schmale Breite -> die HUD-Zeile bricht um (siehe styles.css),
+  // deshalb oben mehr Platz reservieren.
+  const portrait = isPortraitView();
+  let padTop, padBottom;
+  if (portrait) { padTop = 64; padBottom = 12; }
+  else if (vw <= 700 || vh <= 520) { padTop = 40; padBottom = 12; }
+  else { padTop = 70; padBottom = 70; }
   const side = vw < 700 ? 12 : 20;
   const availW = vw - side * 2;
   const availH = vh - padTop - padBottom;
-  view.scale = Math.min(availW / LEVEL.width, availH / LEVEL.height);
+
+  // Hochformat: Das Feld wird um 90° gedreht gezeichnet (siehe draw()), damit
+  // das Querformat-Feld einen hochkanten Bildschirm füllt. Fürs Einpassen
+  // liegen dann Feldbreite/-höhe an vertauschten Bildschirmachsen: die lange
+  // Feldbreite senkrecht, die kurze Feldhöhe waagerecht.
+  view.portrait = portrait;
+  const fieldW = portrait ? LEVEL.height : LEVEL.width;
+  const fieldH = portrait ? LEVEL.width : LEVEL.height;
+
+  view.scale = Math.min(availW / fieldW, availH / fieldH);
   // Auf Touch-Geräten wirken die Zellen bei reiner "alles reinpassen"-Skalierung
   // recht klein (viel ungenutzter Rand durch Seitenverhältnis-Unterschiede).
   // Zusätzlicher Zoom vergrößert alles gleichmäßig um den Mittelpunkt herum;
   // der Rand des Spielfelds darf dafür leicht über den sichtbaren Bereich hinausragen.
   if (coarsePointer) view.scale *= CONFIG.mobileZoom;
-  view.offX = (vw - LEVEL.width * view.scale) / 2;
-  view.offY = padTop + (availH - LEVEL.height * view.scale) / 2;
+  // offX/offY = obere linke Ecke der (ggf. gedrehten) Feld-Bounding-Box auf
+  // dem Bildschirm, in beiden Modi einheitlich.
+  view.offX = (vw - fieldW * view.scale) / 2;
+  view.offY = padTop + (availH - fieldH * view.scale) / 2;
+}
+
+// Setzt die Canvas-Transform von Welt- auf Bildschirmkoordinaten (inkl. DPR).
+// Querformat: reine Skalierung + Verschiebung. Hochformat: zusätzlich 90° im
+// Uhrzeigersinn gedreht, sodass die Welt-x-Achse (lang) senkrecht verläuft.
+// Umkehrung dazu steht in toWorld().
+function applyWorldTransform(dpr) {
+  const s = view.scale * dpr;
+  if (view.portrait) {
+    ctx.setTransform(0, s, -s, 0, (view.offX + LEVEL.height * view.scale) * dpr, view.offY * dpr);
+  } else {
+    ctx.setTransform(s, 0, 0, s, view.offX * dpr, view.offY * dpr);
+  }
+}
+
+// Zeichnet in einem bildschirm-aufrechten lokalen Koordinatensystem, dessen
+// Ursprung am Weltpunkt (wx,wy) liegt. Im Hochformat ist die gesamte Welt um
+// 90° gedreht (siehe applyWorldTransform) - Text/Ziffern und "über/unter der
+// Zelle"-Layouts würden dadurch mitkippen. Hier wird die Drehung lokal
+// zurückgenommen, sodass der Callback in Bildschirmachsen (x rechts, y unten)
+// zeichnet: Beschriftungen bleiben aufrecht und richtig positioniert. Im
+// Querformat ist es eine reine Verschiebung. ctx wird gespeichert/wiederhergestellt.
+function drawUpright(wx, wy, cb) {
+  ctx.save();
+  ctx.translate(wx, wy);
+  if (view.portrait) ctx.rotate(-Math.PI / 2);
+  cb();
+  ctx.restore();
 }
 
 /* ======================================================================
@@ -778,16 +767,16 @@ function checkVictory() {
    ====================================================================== */
 
 function toWorld(e) {
-  // e.clientX/Y liegen immer im physischen (ungedrehten) Viewport. Bei
-  // gedrehter Ansicht (siehe #appRoot in styles.css, um 90° im Uhrzeigersinn
-  // gedreht mit Drehpunkt oben-links bei x=innerWidth) muss die Rotation
-  // zurückgerechnet werden, bevor view.offX/offY/scale (die in der
-  // "logischen", gedrehten Canvas-Größe rechnen) angewendet werden.
-  let cx = e.clientX, cy = e.clientY;
-  if (isRotatedView()) {
-    const rx = cy;
-    const ry = window.innerWidth - cx;
-    cx = rx; cy = ry;
+  // Der Canvas liegt fest im normalen Viewport (kein DOM-Dreh), daher sind
+  // e.clientX/Y direkt Bildschirmkoordinaten. Im Hochformat wird das Feld in
+  // der View-Transform um 90° gedreht gezeichnet (siehe applyWorldTransform);
+  // hier die exakte Umkehrung, damit Zeigerpicking zum Gezeichneten passt.
+  const cx = e.clientX, cy = e.clientY;
+  if (view.portrait) {
+    return {
+      x: (cy - view.offY) / view.scale,
+      y: (view.offX + LEVEL.height * view.scale - cx) / view.scale
+    };
   }
   return {
     x: (cx - view.offX) / view.scale,
@@ -999,12 +988,12 @@ function drawTentacle(t, now) {
   // Balance-Debug: Durchsatz (Wert/Sek.) einer angedockten, aktiv
   // übertragenden Tentakel neben der Spitze einblenden.
   if (debugMode && t.mode === "flow" && t.rate > 0.05) {
-    ctx.save();
-    ctx.font = '600 10px "Consolas", "SF Mono", monospace';
-    ctx.textAlign = "center";
-    ctx.fillStyle = hexToRgba("#eaf2fa", 0.8);
-    ctx.fillText(`${t.rate.toFixed(1)}/s`, tipX, tipY - 10);
-    ctx.restore();
+    drawUpright(tipX, tipY, () => {
+      ctx.font = '600 10px "Consolas", "SF Mono", monospace';
+      ctx.textAlign = "center";
+      ctx.fillStyle = hexToRgba("#eaf2fa", 0.8);
+      ctx.fillText(`${t.rate.toFixed(1)}/s`, 0, -10);
+    });
   }
 
   // Duell-Funken: weiß glühende Spitze, solange zwei Tentakel ringen
@@ -1094,8 +1083,8 @@ function draw(now) {
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, vw, vh);
 
-  // In Weltkoordinaten wechseln
-  ctx.setTransform(view.scale * dpr, 0, 0, view.scale * dpr, view.offX * dpr, view.offY * dpr);
+  // In Weltkoordinaten wechseln (im Hochformat um 90° gedreht)
+  applyWorldTransform(dpr);
 
   // Dekorative Hintergrundpunkte
   for (const s of stars) {
@@ -1127,10 +1116,12 @@ function draw(now) {
       - (snap ? cellRadius(hovered) : 0);
     if (d > 20) {
       const cost = Math.ceil(d / CONFIG.lengthPerUnit);
-      ctx.font = '600 13px "Segoe UI", system-ui, sans-serif';
-      ctx.textAlign = "center";
-      ctx.fillStyle = hexToRgba("#eaf2fa", 0.9);
-      ctx.fillText(`−${cost}`, (dragSource.x + tx) / 2, (dragSource.y + ty) / 2 - 10);
+      drawUpright((dragSource.x + tx) / 2, (dragSource.y + ty) / 2, () => {
+        ctx.font = '600 13px "Segoe UI", system-ui, sans-serif';
+        ctx.textAlign = "center";
+        ctx.fillStyle = hexToRgba("#eaf2fa", 0.9);
+        ctx.fillText(`−${cost}`, 0, -10);
+      });
     }
   }
 
@@ -1248,40 +1239,47 @@ function draw(now) {
       ctx.stroke();
     }
 
-    // Punkte-Zähler
-    ctx.font = `700 ${Math.round(r * 0.62)}px "Segoe UI", system-ui, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "#eaf2fa";
-    // nie negativ anzeigen (während des Not-Einzugs kann der Wert intern < 0 sein)
-    ctx.fillText(String(Math.max(0, Math.floor(c.units))), c.x, c.y + 1);
+    // Punkte-Zähler (im Hochformat aufrecht, siehe drawUpright)
+    drawUpright(c.x, c.y, () => {
+      ctx.font = `700 ${Math.round(r * 0.62)}px "Segoe UI", system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#eaf2fa";
+      // nie negativ anzeigen (während des Not-Einzugs kann der Wert intern < 0 sein)
+      ctx.fillText(String(Math.max(0, Math.floor(c.units))), 0, 1);
+    });
 
     // Balance-Debug: Produktion/Sek. und Kapazität dezent über der Zelle
     if (debugMode) {
-      ctx.font = '600 10px "Consolas", "SF Mono", monospace';
-      ctx.textAlign = "center";
-      ctx.fillStyle = hexToRgba("#eaf2fa", 0.55);
-      ctx.fillText(`+${cellProd(c).toFixed(1)}/s · ${cellMax(c)}`, c.x, c.y - r - 9);
+      drawUpright(c.x, c.y, () => {
+        ctx.font = '600 10px "Consolas", "SF Mono", monospace';
+        ctx.textAlign = "center";
+        ctx.fillStyle = hexToRgba("#eaf2fa", 0.55);
+        ctx.fillText(`+${cellProd(c).toFixed(1)}/s · ${cellMax(c)}`, 0, -r - 9);
+      });
     }
 
     // Tentakel-Slots als kleine Punkte unter befehligbaren Zellen
+    // (im Hochformat aufrecht als waagerechte Reihe, siehe drawUpright)
     if (controllable(c)) {
       const total = maxSlots(c);
       const used = outgoing(c).length;
-      const y = c.y + r + 16;
-      const x0 = c.x - ((total - 1) * 9) / 2;
-      for (let i = 0; i < total; i++) {
-        ctx.beginPath();
-        ctx.arc(x0 + i * 9, y, 2.6, 0, Math.PI * 2);
-        if (i < used) {
-          ctx.fillStyle = color;
-          ctx.fill();
-        } else {
-          ctx.strokeStyle = hexToRgba(color, 0.45);
-          ctx.lineWidth = 1.2;
-          ctx.stroke();
+      const y = r + 16;
+      const x0 = -((total - 1) * 9) / 2;
+      drawUpright(c.x, c.y, () => {
+        for (let i = 0; i < total; i++) {
+          ctx.beginPath();
+          ctx.arc(x0 + i * 9, y, 2.6, 0, Math.PI * 2);
+          if (i < used) {
+            ctx.fillStyle = color;
+            ctx.fill();
+          } else {
+            ctx.strokeStyle = hexToRgba(color, 0.45);
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+          }
         }
-      }
+      });
     }
   }
 }

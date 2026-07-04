@@ -16,11 +16,10 @@
 </head>
 <body>
 
-<!-- #appRoot: alles UI in einem Wrapper, damit er auf Handys im Hochformat
-     komplett um 90° gedreht werden kann (siehe styles.css) - das querformatig
-     angelegte Spielfeld füllt den Bildschirm dann wieder ordentlich aus statt
-     winzig verkleinert zu werden. Die Rotation ist rein visuell (CSS); die
-     Umrechnung der Zeigerkoordinaten übernimmt toWorld()/resize() in game.js. -->
+<!-- #appRoot: umschließt das gesamte UI. Im Hochformat wird das querformatige
+     Spielfeld nicht mehr per DOM gedreht, sondern direkt im Canvas um 90°
+     gezeichnet (siehe applyWorldTransform/resize in game.js), sodass es einen
+     aufrecht gehaltenen Bildschirm füllt. HUD und Menüs bleiben normal oben. -->
 <div id="appRoot">
 
 <canvas id="game"></canvas>
@@ -33,7 +32,6 @@
     <button id="btnLevels" type="button">Level</button>
     <button id="btnDebug" type="button" title="Debug-Zustand herunterladen (auch: F9)">🐞</button>
     <button id="btnBalance" type="button" title="Balance-Anzeige an/aus (auch: F8)">📊</button>
-    <button id="btnRotate" type="button" title="Hochformat: gedreht (Feld füllt Bildschirm) / normal (kleiner, ohne Drehung)">🔄</button>
   </div>
 </div>
 

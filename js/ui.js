@@ -216,21 +216,6 @@ function toggleDebugMode() {
   if (debugMode) updateDebugPanel();
 }
 
-/* ---------------------------------------------------------------------
-   Hochformat-Umschalter (🔄-Knopf im HUD, nur auf Touch-Geräten sichtbar)
-   Wechselt zwischen "gedreht" (Spielfeld füllt den Bildschirm, Kopf schräg
-   halten - Standard) und "normal" (kein Dreh-Trick, Spielfeld bleibt klein
-   und zentriert wie am Desktop). Einstellung wird gespeichert.
-   --------------------------------------------------------------------- */
-function updateRotateButton() {
-  document.getElementById("btnRotate").classList.toggle("active", !rotatePreference);
-}
-
-function toggleRotatePreference() {
-  setRotatePreference(!rotatePreference);
-  updateRotateButton();
-}
-
 function updateDebugPanel() {
   const panel = document.getElementById("debugPanel");
   const owners = ["player", ...AI_FACTIONS.filter(f => cells.some(c => c.owner === f))];
@@ -336,12 +321,6 @@ function initUi() {
   document.getElementById("overlayRestart").addEventListener("click", resetGame);
   document.getElementById("btnLevels").addEventListener("click", showLevelMenu);
   document.getElementById("btnBalance").addEventListener("click", toggleDebugMode);
-  if (coarsePointer) {
-    document.getElementById("btnRotate").addEventListener("click", toggleRotatePreference);
-    updateRotateButton();
-  } else {
-    document.getElementById("btnRotate").remove(); // nur für Touch-Geräte relevant
-  }
   document.getElementById("overlayMenu").addEventListener("click", showLevelMenu);
   document.getElementById("overlayNext").addEventListener("click", onOverlayNext);
 

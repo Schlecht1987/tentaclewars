@@ -18,32 +18,11 @@ body {
 }
 #game { position: fixed; inset: 0; display: block; cursor: crosshair; touch-action: none; }
 
-/* ================= HOCHFORMAT AM HANDY: GANZES UI UM 90° DREHEN =================
-   Das Spielfeld ist querformatig angelegt. Auf einem Touch-Gerät im Hochformat
-   sonst würde es winzig verkleinert dargestellt (siehe view.scale in resize()).
-   Trick: der komplette UI-Wrapper wird per CSS um 90° gedreht und auf die
-   (vertauschten) Bildschirmmaße gebracht - danach füllt das querformatige
-   Spielfeld den Bildschirm wieder normal aus. Ein transform auf #appRoot macht
-   es außerdem zum containing block für seine position:fixed-Kinder (Canvas,
-   HUD, Menüs, ...), die sich dadurch weiterhin ganz normal an dessen Kanten
-   ausrichten. game.js rechnet Zeigerkoordinaten (toWorld) und die
-   Canvas-Größe (resize) passend dazu um. */
-@media (orientation: portrait) and (pointer: coarse) {
-  /* Reiner Fallback: resize() in js/game.js setzt dieselben Werte als
-     Inline-Style, aus denselben window.innerWidth/innerHeight, die auch die
-     Canvas-Größe bestimmen - Inline-Styles gewinnen immer gegen diese Regel.
-     vh/vw wichen in manchen mobilen Browsern (Adressleiste ein/ausgeblendet)
-     vom tatsächlich sichtbaren Viewport ab, wodurch die gedrehte Box nicht
-     mehr zur Canvas passte ("geteilter" Bildschirm) - falls JS aus
-     irgendeinem Grund nicht läuft, greift wenigstens diese Näherung. */
-  #appRoot {
-    position: fixed;
-    top: 0; left: 100%;
-    width: 100vh; height: 100vw;
-    transform-origin: 0 0;
-    transform: rotate(90deg);
-  }
-}
+/* Hochformat: Das querformatige Spielfeld wird nicht per DOM gedreht, sondern
+   direkt im Canvas um 90° gezeichnet (siehe applyWorldTransform/resize in
+   game.js), sodass es einen aufrecht gehaltenen Bildschirm füllt. HUD und
+   Menüs bleiben dabei normal ausgerichtet - hier ist deshalb keine
+   Rotations-CSS-Regel mehr nötig. */
 
 /* ================= HUD OBEN ================= */
 .hud-top {
@@ -68,7 +47,7 @@ body {
 .status { display: flex; align-items: center; gap: 14px; font-size: 13px; }
 .chip { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
 .chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-#restart, #btnLevels, #btnDebug, #btnBalance, #btnRotate {
+#restart, #btnLevels, #btnDebug, #btnBalance {
   pointer-events: auto; cursor: pointer;
   background: transparent; color: var(--dim);
   border: 1px solid rgba(133,147,161,.35); border-radius: 6px;
@@ -78,8 +57,7 @@ body {
 #restart:hover, #restart:focus-visible,
 #btnLevels:hover, #btnLevels:focus-visible,
 #btnDebug:hover, #btnDebug:focus-visible,
-#btnBalance:hover, #btnBalance:focus-visible,
-#btnRotate:hover, #btnRotate:focus-visible { color: var(--text); border-color: var(--text); outline: none; }
+#btnBalance:hover, #btnBalance:focus-visible { color: var(--text); border-color: var(--text); outline: none; }
 
 /* ================= BALANCE-DEBUG-ANZEIGE ================= */
 .debug-panel {
@@ -224,9 +202,15 @@ body {
 /* ================= KLEINE BILDSCHIRME (Handy) ================= */
 @media (max-width: 700px), (max-height: 520px) {
   .legend, .hint { display: none; }
-  .hud-top { padding-top: calc(6px + env(safe-area-inset-top, 0px)); }
+  /* Schmale (v.a. hochkante) Bildschirme: Titel + Statusleiste passen nicht
+     mehr nebeneinander -> umbrechen lassen, Status rutscht rechtsbündig unter
+     den Titel; auch Chips/Knöpfe innerhalb dürfen umbrechen. */
+  .hud-top {
+    padding-top: calc(6px + env(safe-area-inset-top, 0px));
+    flex-wrap: wrap; gap: 4px 10px;
+  }
   .hud-top h1 { font-size: 12px; letter-spacing: .28em; }
-  .status { gap: 9px; font-size: 12px; }
+  .status { flex-wrap: wrap; justify-content: flex-end; gap: 8px; font-size: 12px; }
   .menu-overlay h2 { font-size: 24px; }
   #overlay h2 { font-size: 34px; }
   #campaignGrid { grid-template-columns: repeat(auto-fit, minmax(40px, 1fr)); width: min(480px, 92vw); }
