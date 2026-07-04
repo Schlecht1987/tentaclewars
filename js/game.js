@@ -132,13 +132,19 @@ function resize() {
     appRoot.style.transformOrigin = "0 0";
     appRoot.style.transform = "rotate(90deg)";
   } else {
-    appRoot.style.position = "";
+    // Explizit auf "normal" setzen (nicht nur die Inline-Styles leeren!):
+    // Die CSS-Fallback-Regel in styles.css greift bei Hochformat+Touch immer
+    // per @media-Query, unabhängig von rotatePreference - würde man die
+    // Inline-Styles nur leeren, käme diese Regel wieder zum Zug und die
+    // Drehung ließe sich über den 🔄-Knopf gar nicht abschalten (leere
+    // Inline-Styles = "keine Deklaration", nicht "Regel überschreiben").
+    appRoot.style.position = "static";
     appRoot.style.top = "";
     appRoot.style.left = "";
     appRoot.style.width = "";
     appRoot.style.height = "";
     appRoot.style.transformOrigin = "";
-    appRoot.style.transform = "";
+    appRoot.style.transform = "none";
   }
 
   canvas.width = Math.round(vw * dpr);
