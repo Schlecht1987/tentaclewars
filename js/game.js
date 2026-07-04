@@ -314,16 +314,20 @@ function opposingTipL(t, o) {
   return (tip.x - t.p0.x) * t.ux + (tip.y - t.p0.y) * t.uy;
 }
 
-// Nachschub für ein Tentakel-Duell: gedeckelt durch transferRate, gespeist
-// aus dem VORRAT der Quellzelle (Puffer zuerst). Duelle sind Abnutzungs-
-// kämpfe: wer besseren Nachschub hat – höhere Produktion, Heiler-
-// Verstärkung, größere Reserven – setzt sich durch. Beide Zähler sinken
-// dabei sichtbar ("Punkte gegeneinander schießen").
+// Nachschub für ein Tentakel-Duell: genau wie ein einseitiger Fluss auf die
+// Produktion der Quelle gedeckelt (_flowBudget/_boostShare, siehe oben) –
+// der gespeicherte Vorrat wird NICHT direkt verkämpft. Zwei gleich starke
+// Zellen im Duell speisen dadurch nur ihre laufende Produktion gegeneinander
+// und pendeln sich zu einem echten Patt an der Front ein, statt sich
+// gegenseitig leerzusaugen. Wird eine Seite zusätzlich von einer dritten
+// Zelle versorgt (Heiler-Kette, Überschuss-Durchleitung), erhöht das ihren
+// Puffer-Anteil (_boostShare) – sie speist mehr als die Produktion allein
+// hergibt und gewinnt die Abnutzung langsam.
 function battleFeed(t, dt) {
   const c = t.src;
   const want = CONFIG.transferRate * dt;
-  const fromBoost = Math.min(c.boost, want);
-  const fromUnits = Math.min(Math.max(0, c.units), want - fromBoost);
+  const fromBoost = Math.min(c.boost, c._boostShare, want);
+  const fromUnits = Math.min(c._flowBudget, Math.max(0, c.units), Math.max(0, want - fromBoost));
   c.boost -= fromBoost;
   c.units -= fromUnits;
   if (fromBoost > 0.0001) t.boostGlow = 0.35;

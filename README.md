@@ -107,12 +107,13 @@ Bunker.
   angezeigt. Ohne Vorrat stockt das Wachstum.
 - **Tentakel-Slots:** Jede Zelle darf 1 Tentakel ausfahren, plus 1 pro 25
   aktuelle Punkte (max. 4). Anzeige als kleine Punkte unter der Zelle.
-- **Heilen vs. (unbeantwortetes) Angreifen:** Sowohl Heil-Flüsse als auch ein
-  Angriff OHNE Gegen-Tentakel (kein Duell) sind auf die Produktion der Quelle
-  gedeckelt – Unterstützen und einseitiges Angreifen kosten nie Vorrat, der
-  Vorrat bleibt also gleich (kann durch den Überschuss-Puffer sogar mit-
-  wachsen). Nur ein echtes **Tentakel-Duell** (siehe unten) zapft den VORRAT
-  mit voller Rate (3 Punkte/s) an.
+- **Heilen, einseitiges Angreifen UND Duelle laufen über dieselbe Produktions-
+  Deckelung:** Heil-Flüsse, ein Angriff OHNE Gegen-Tentakel und auch ein
+  echtes **Tentakel-Duell** (siehe unten) sind alle auf die Produktion der
+  Quelle gedeckelt – Kämpfen kostet nie den gespeicherten Vorrat, nur die
+  laufende Produktion. Zwei gleich starke Zellen im Duell speisen dadurch
+  exakt gleich viel gegeneinander und pendeln sich zu einem echten Patt ein,
+  statt sich gegenseitig leerzusaugen.
 - **Verzögerte Wirkung:** Übertragene Punkte werden beim Absenden von der
   Quelle abgezogen, wirken (heilen/schaden) am Ziel aber erst, nachdem sie
   sichtbar die Tentakel entlang geflossen sind – die Laufzeit entspricht der
@@ -128,12 +129,16 @@ Bunker.
   Verbindungsrichtung gleichzeitig möglich.
 - **Tentakel-Duelle:** Gegnerische Tentakel zwischen denselben zwei Zellen
   treffen sich im Korridor und ringen (weiß glühende Front). Beide Seiten
-  speisen Punkte aus ihrem Vorrat; die stärkere drückt die schwächere zurück.
-  Ein **Heimvorteil** (stark an der eigenen Zelle, null in der Mitte) sorgt
-  dafür, dass sich gleich starke Parteien in der Korridor-Mitte einpendeln.
-  Sind hingegen **beide** Zellen erschöpft (leergekämpft), kann keine mehr
-  eine Front halten: Dann bricht die Tentakel durch, die ihrem Ziel näher ist,
-  und erobert – das Duell friert nicht mehr bei zwei 0-Zellen ein.
+  speisen Punkte aus ihrer laufenden Produktion (nicht aus dem Vorrat!); bei
+  gleicher Produktion ist das ein echtes Patt. Wird eine Seite zusätzlich von
+  einer anderen eigenen Zelle versorgt (Heiler-Kette, Überschuss-Durch-
+  leitung), speist sie mehr als ihre eigene Produktion hergibt und gewinnt die
+  Abnutzung langsam. Ein **Heimvorteil** (stark an der eigenen Zelle, null in
+  der Mitte) sorgt zusätzlich dafür, dass sich gleich starke Parteien in der
+  Korridor-Mitte einpendeln. Sind hingegen **beide** Zellen erschöpft (Vorrat
+  leer), kann keine mehr eine Front halten: Dann bricht die Tentakel durch,
+  die ihrem Ziel näher ist, und erobert – das Duell friert nicht bei zwei
+  0-Zellen ein.
 - **Eroberung (eigene/gegnerische Zellen):** Fällt der Vorrat unter 0,
   wechselt die Zelle sofort den Besitzer. Ihre noch ausgefahrenen Tentakel
   ziehen sich automatisch ein – die zurückfließende Masse zählt für den NEUEN
