@@ -115,6 +115,11 @@ function resize() {
   const availW = vw - side * 2;
   const availH = vh - padTop - padBottom;
   view.scale = Math.min(availW / LEVEL.width, availH / LEVEL.height);
+  // Auf Touch-Geräten wirken die Zellen bei reiner "alles reinpassen"-Skalierung
+  // recht klein (viel ungenutzter Rand durch Seitenverhältnis-Unterschiede).
+  // Zusätzlicher Zoom vergrößert alles gleichmäßig um den Mittelpunkt herum;
+  // der Rand des Spielfelds darf dafür leicht über den sichtbaren Bereich hinausragen.
+  if (coarsePointer) view.scale *= CONFIG.mobileZoom;
   view.offX = (vw - LEVEL.width * view.scale) / 2;
   view.offY = padTop + (availH - LEVEL.height * view.scale) / 2;
 }
@@ -242,11 +247,15 @@ function tryCommand(src, dst) {
 
   // Befreundete Zellen: immer nur EINE Verbindungsrichtung gleichzeitig.
   // (Gegnerische Zellen dürfen aufeinander losgehen – die Tentakel treffen
-  // sich dann in der Mitte und ringen miteinander.)
+  // sich dann in der Mitte und ringen miteinander.) Fährt der Spieler in
+  // diesem Fall die Gegenrichtung an (z.B. weil dst gerade von src geheilt
+  // wird und jetzt umgekehrt Unterstützung braucht), wird die bestehende
+  // Verbindung eingezogen statt den Befehl abzulehnen – die Einbahn-Regel
+  // bleibt gewahrt, der Nutzer muss aber nicht erst manuell trennen.
   if (dst.owner === src.owner) {
     const back = tentacles.find(t => !t.dead && t.src === dst && t.dst === src &&
       (t.mode === "grow" || t.mode === "flow"));
-    if (back) { src.denyFlash = 0.45; return false; }
+    if (back) back.mode = "retract";
   }
 
   if (outgoing(src).length >= maxSlots(src) || src.units < 2) {

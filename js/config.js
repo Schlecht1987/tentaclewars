@@ -5,6 +5,12 @@
    ====================================================================== */
 
 const CONFIG = {
+  // --- Ansicht ---
+  mobileZoom: 1.18,  // zusätzlicher Zoomfaktor auf Touch-Geräten (coarsePointer):
+                      // Spielfeld wird über die reine "alles reinpassen"-Größe
+                      // hinaus vergrößert (Ränder werden leicht angeschnitten),
+                      // damit Zellen auf kleinen Handy-Bildschirmen größer wirken.
+
   // --- Tentakel ---
   tentacleSpeed:  55,   // Wachstums-Geschwindigkeit der Tentakelspitze (Welt-Pixel/Sek.) – bewusst langsam
   retractSpeed:   130,  // Geschwindigkeit beim Einziehen bzw. von abgetrennten Stücken
