@@ -355,19 +355,22 @@ function onOverlayNext() {
 }
 
 /* ---------------------------------------------------------------------
-   Legende (Zelltypen-Erklärung unten)
+   Legende (Zelltypen-Erklärung): unten im laufenden Spiel (#legend, auf
+   kleinen Bildschirmen per CSS ausgeblendet) UND dauerhaft erreichbar in
+   den Einstellungen (#settingsLegend) – gleicher Inhalt, zwei Container.
    --------------------------------------------------------------------- */
 
-function buildLegend() {
-  const legend = document.getElementById("legend");
+const CELL_TYPE_INFO = {
+  normal:   "Produktion 1/s · Max 50",
+  healer:   "Heilung +2",
+  attacker: "Angriff −2",
+  factory:  "Produktion 2/s · Max 25",
+  bunker:   "Max 100 · Schaden −1 pro Punkt"
+};
+
+function renderCellTypeLegend(containerId) {
+  const legend = document.getElementById(containerId);
   const dpr = window.devicePixelRatio || 1;
-  const info = {
-    normal:   "Produktion 1/s · Max 50",
-    healer:   "Heilung +2",
-    attacker: "Angriff −2",
-    factory:  "Produktion 2/s · Max 25",
-    bunker:   "Max 100 · Schaden −1 pro Punkt"
-  };
   for (const key of Object.keys(CELL_TYPES)) {
     const item = document.createElement("div");
     item.className = "legend-item";
@@ -380,10 +383,15 @@ function buildLegend() {
     drawCellShape(c2, key, size / 2, size / 2 + (key === "healer" ? 2 : 0), key === "healer" ? 8.5 : 10, "#8593a1", false);
     item.appendChild(cv);
     const label = document.createElement("span");
-    label.innerHTML = `<strong style="color:var(--text)">${CELL_TYPES[key].label}</strong> &middot; ${info[key]}`;
+    label.innerHTML = `<strong style="color:var(--text)">${CELL_TYPES[key].label}</strong> &middot; ${CELL_TYPE_INFO[key]}`;
     item.appendChild(label);
     legend.appendChild(item);
   }
+}
+
+function buildLegend() {
+  renderCellTypeLegend("legend");
+  renderCellTypeLegend("settingsLegend");
 }
 
 /* ---------------------------------------------------------------------

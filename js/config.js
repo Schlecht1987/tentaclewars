@@ -7,7 +7,7 @@
 // Neben dem Namen (HUD/Menü) angezeigte Versionsnummer – bei jedem Release
 // zusammen mit der CACHE-Version in sw.js hochzählen, damit Nutzer (und wir
 // bei Fehlerberichten) erkennen können, ob ihr Client schon aktualisiert hat.
-const APP_VERSION = "17";
+const APP_VERSION = "18";
 
 const CONFIG = {
   // --- Ansicht ---
