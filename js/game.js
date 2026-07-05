@@ -495,6 +495,16 @@ function cutTentacle(t, L) {
   const margin = 6; // nicht unmittelbar an den Enden schneiden
   if (t.dead || L < t.tail + margin || L > t.head - margin) return false;
 
+  // War die Tentakel noch nicht angedockt (mode "grow", Spitze noch unterwegs
+  // zum Ziel), gibt es noch keine committete Masse beim Ziel – das
+  // durchtrennte Vorderstück soll dann NICHT weiter zum Gegner fliegen und
+  // dort Schaden/Heilung abliefern, sondern die ganze Tentakel fährt einfach
+  // ein, so als hätte man sie regulär zurückgezogen.
+  if (t.mode === "grow") {
+    t.mode = "retract";
+    return true;
+  }
+
   // Vorderes Stück [L, head] wird ein freies Stück Richtung Ziel –
   // es übernimmt bereits unterwegs befindliche Punkte-Pakete, die weiter
   // auf ihr Ziel zufließen. prevTail/prevHead = eigener aktueller Stand
