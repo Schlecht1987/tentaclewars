@@ -100,6 +100,20 @@ body {
 .menu-overlay h2 span { color: var(--player); }
 .menu-overlay .sub { margin: 0 0 14px; color: var(--dim); font-size: 13px; letter-spacing: .12em; }
 
+.settings-gear {
+  position: fixed; z-index: 6; cursor: pointer;
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  background: transparent; color: var(--dim);
+  border: 1px solid rgba(133,147,161,.35); border-radius: 8px;
+  font-size: 18px; line-height: 1; padding: 8px 10px;
+}
+.settings-gear:hover, .settings-gear:focus-visible { color: var(--text); border-color: var(--text); outline: none; }
+.settings-hint {
+  max-width: 380px; margin: 4px 0 0; padding: 0 10px;
+  font-size: 12px; color: var(--dim); line-height: 1.5; text-align: center;
+}
+
 /* Kampagnen-Gitter: 50 nummerierte Kacheln */
 #campaignGrid {
   display: grid;

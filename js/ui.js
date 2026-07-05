@@ -171,6 +171,65 @@ function startRandomGame() {
 }
 
 /* ---------------------------------------------------------------------
+   Einstellungen (⚙-Knopf im Hauptmenü)
+   ----------------------------------------------------------------------
+   Bisher nur die Bildschirmausrichtung: manche bereits installierten PWA-
+   Versionen übernehmen eine ehemalige `"orientation": "landscape"`-Sperre
+   aus dem Manifest dauerhaft (Browser lesen das Manifest einer bestehenden
+   Installation oft nicht zuverlässig neu ein). Über die Screen-Orientation-
+   API kann die Seite diese Sperre zur Laufzeit aktiv übersteuern – braucht
+   dafür aber eine echte Nutzer-Geste (Knopfdruck), rein automatisch beim
+   Laden funktioniert das in den meisten Browsern nicht.
+   --------------------------------------------------------------------- */
+
+const ORIENTATION_SETTING_KEY = "zellkrieg.orientationSetting.v1";
+
+function loadOrientationSetting() {
+  try { return localStorage.getItem(ORIENTATION_SETTING_KEY) || "auto"; }
+  catch (e) { return "auto"; }
+}
+
+function saveOrientationSetting(value) {
+  try { localStorage.setItem(ORIENTATION_SETTING_KEY, value); } catch (e) { /* privater Modus o.ä. */ }
+}
+
+function orientationLockSupported() {
+  return !!(screen.orientation && typeof screen.orientation.lock === "function");
+}
+
+// value: "auto" (Standard/Manifest-Vorgabe) oder "free" (Sperre aktiv aufheben)
+function applyOrientationSetting(value) {
+  if (!orientationLockSupported()) return;
+  if (value === "free") {
+    screen.orientation.lock("any").catch(() => { /* z.B. ohne Nutzer-Geste im aktuellen Kontext abgelehnt */ });
+  } else if (screen.orientation.unlock) {
+    screen.orientation.unlock();
+  }
+}
+
+function updateSettingsUi() {
+  const value = loadOrientationSetting();
+  document.getElementById("btnOrientAuto").classList.toggle("active", value === "auto");
+  document.getElementById("btnOrientFree").classList.toggle("active", value === "free");
+  const supported = orientationLockSupported();
+  document.getElementById("btnOrientFree").disabled = !supported;
+  document.getElementById("settingsOrientHint").textContent = supported
+    ? "Manche installierten PWA-Versionen sperren das Querformat, selbst wenn das Spiel Hochformat unterstützt. \"Frei drehbar\" hebt diese Sperre für diese Sitzung aktiv auf."
+    : "Dieser Browser unterstützt das aktive Aufheben der Ausrichtungssperre nicht (z. B. iOS Safari) – dort richtet sich die App direkt nach der Geräteausrichtung, ganz ohne diese Einstellung.";
+}
+
+function showSettingsMenu() {
+  updateSettingsUi();
+  document.getElementById("levelSelect").classList.add("hidden");
+  document.getElementById("settingsMenu").classList.remove("hidden");
+}
+
+function hideSettingsMenu() {
+  document.getElementById("settingsMenu").classList.add("hidden");
+  document.getElementById("levelSelect").classList.remove("hidden");
+}
+
+/* ---------------------------------------------------------------------
    HUD: ein Chip pro Fraktion im laufenden Level
    --------------------------------------------------------------------- */
 
@@ -353,6 +412,22 @@ function initUi() {
     saveRandomSettings();
     updateSeedLabel();
   });
+
+  document.getElementById("btnSettings").addEventListener("click", showSettingsMenu);
+  document.getElementById("btnSettingsBack").addEventListener("click", hideSettingsMenu);
+  document.getElementById("btnOrientAuto").addEventListener("click", () => {
+    saveOrientationSetting("auto");
+    applyOrientationSetting("auto");
+    updateSettingsUi();
+  });
+  document.getElementById("btnOrientFree").addEventListener("click", () => {
+    saveOrientationSetting("free");
+    applyOrientationSetting("free"); // läuft direkt im Klick-Handler -> zählt als Nutzer-Geste
+    updateSettingsUi();
+  });
+  // Best-effort beim Start: klappt in den meisten Browsern nur mit einer
+  // echten Nutzer-Geste zuverlässig, schadet aber nicht, es trotzdem zu versuchen.
+  applyOrientationSetting(loadOrientationSetting());
 
   buildCampaignGrid();
 }

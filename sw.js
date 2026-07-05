@@ -8,7 +8,7 @@
    "Update on reload" / "Bypass for network" aktivieren.
    ====================================================================== */
 
-const CACHE = "zellkrieg-v16";
+const CACHE = "zellkrieg-v17";
 
 const ASSETS = [
   "./",

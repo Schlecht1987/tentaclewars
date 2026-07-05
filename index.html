@@ -46,6 +46,7 @@
 
 <div id="levelSelect" class="menu-overlay">
   <div class="menu-inner">
+    <button id="btnSettings" class="settings-gear" type="button" title="Einstellungen">&#9881;&#65039;</button>
     <h2>Zell<span>krieg</span> <span class="app-version" id="appVersionMenu"></span></h2>
     <p class="sub">KAMPAGNE &ndash; 50 LEVEL</p>
     <div id="campaignGrid"></div>
@@ -60,6 +61,28 @@
         <h3>Testlabor</h3>
         <p>Alle f&uuml;nf Zelltypen auf beiden Seiten. Du steuerst ALLE Parteien &ndash; keine KI, kein Spielende. Zum Ausprobieren der Mechaniken.</p>
       </button>
+    </div>
+  </div>
+</div>
+
+<div id="settingsMenu" class="menu-overlay hidden">
+  <div class="menu-inner">
+    <h2>Einstellungen</h2>
+    <p class="sub">ANZEIGE</p>
+    <div class="option-row">
+      <span class="option-label">Bildschirm drehen</span>
+      <div class="option-pills">
+        <button id="btnOrientAuto" type="button" class="pill">Automatisch</button>
+        <button id="btnOrientFree" type="button" class="pill">Frei drehbar</button>
+      </div>
+    </div>
+    <p class="settings-hint" id="settingsOrientHint">
+      Manche installierten PWA-Versionen sperren das Querformat, selbst wenn das Spiel
+      Hochformat unterst&uuml;tzt. "Frei drehbar" hebt diese Sperre f&uuml;r diese Sitzung
+      aktiv auf.
+    </p>
+    <div class="menu-actions">
+      <button id="btnSettingsBack" class="ghost-btn" type="button">Zur&uuml;ck</button>
     </div>
   </div>
 </div>
