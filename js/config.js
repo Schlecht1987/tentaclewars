@@ -15,6 +15,21 @@ const CONFIG = {
                       // Spielfeld wird über die reine "alles reinpassen"-Größe
                       // hinaus vergrößert (Ränder werden leicht angeschnitten),
                       // damit Zellen auf kleinen Handy-Bildschirmen größer wirken.
+  maxDpr: 2,          // Obergrenze für devicePixelRatio bei der Canvas-Auflösung –
+                      // ungedeckelt zeichnen 3x-Handys 9x so viele Pixel/Frame wie
+                      // ein 1x-Display; das kostet auf schwacher Mobile-Hardware
+                      // spürbar Bildrate, ohne sichtbar mehr Schärfe zu bringen.
+  glowOnMobile: false, // ctx.shadowBlur-Leuchteffekte (Zellen/Tentakel) sind auf
+                       // Mobile-Canvas2D-Rasterizern teuer; auf Touch-Geräten
+                       // (coarsePointer) standardmäßig aus.
+
+  // --- Simulation ---
+  simTickRate: 30,     // feste Simulationsrate (Hz), unabhängig von der
+                       // Bildwiederholrate: frame() akkumuliert echte Zeit und
+                       // ruft update() in festen SIM_DT-Schritten auf; draw()
+                       // läuft weiter mit voller Framerate und interpoliert
+                       // Tentakel-Positionen zwischen zwei Sim-Schritten, damit
+                       // die Animation trotz selteneren Rechnens flüssig bleibt.
 
   // --- Tentakel ---
   tentacleSpeed:  55,   // Wachstums-Geschwindigkeit der Tentakelspitze (Welt-Pixel/Sek.) – bewusst langsam
@@ -27,6 +42,20 @@ const CONFIG = {
                          // voller Rate an – gespeicherte Punkte werden in
                          // Schaden umgemünzt, guter Nachschub entscheidet.
   flowDotSpeed:   80,   // rein visuell: Geschwindigkeit der Fluss-Punkte auf der Tentakel
+  // Gestufte (statt stufenlose) Fluss-Punkt-Geschwindigkeit je nach Durchsatz
+  // (t.rate, Wert/Sek.) – rein kosmetisch, betrifft NICHT transferRate/die
+  // tatsächliche Balance. max = obere Durchsatz-Grenze der Stufe, mul =
+  // Vielfaches von flowDotSpeed in dieser Stufe.
+  flowSpeedTiers: [
+    { max: 1.5, mul: 1 },        // langsam
+    { max: 3.5, mul: 1.6 },      // mittel
+    { max: Infinity, mul: 2.5 }, // schnell
+  ],
+  pipelineBatchTicks: 3, // je Tentakel wird nicht mehr JEDEN Sim-Tick ein eigenes
+                         // Punkte-Paket in die Pipeline gelegt, sondern über so
+                         // viele Ticks aufsummiert und dann als ein Paket
+                         // eingereiht – spart Push/Shift-Overhead, ohne die
+                         // sichtbare "Front" (siehe drawTentacle) zu verändern.
 
   // Überschuss-Durchleitung: Ist eine Zelle voll, verfallen eingehende Heilung
   // und eigene Produktion nicht, sondern landen in einem Puffer und werden
@@ -65,29 +94,7 @@ const CONFIG = {
   tierDown:      [20, 60, 100],       // Vorrats-Schwellen zum Abstieg (je 20 darunter)
   tierMaxUnits:  [null, 90, 130, 170],// Kapazität ab Stufe 1 (Stufe 0 = Typ-Max)
   tierProdMul:   [1, 1.25, 1.5, 1.8], // Produktions-Faktor je Stufe
-  tierRadiusAdd: [0, 4, 8, 13],       // Radius-Zuschlag (Pixel) je Stufe
-
-  // "Heimvorteil" in Tentakel-Duellen: Zusatzkraft (Punkte/Sek.) direkt an
-  // der eigenen Zelle, linear abfallend bis 0 in der Korridor-Mitte.
-  // Dadurch drückt eine Verteidiger-Tentakel einen Angreifer mindestens bis
-  // zur Mitte zurück – bei gleich starken Zellen pendelt sich die Front dort ein.
-  clashHomefield: 4,
-
-  // Mindest-Vorrat, den eine Zelle gespeichert haben muss, um in einem Duell
-  // ihren Heimvorteil geltend zu machen (eine Front zu HALTEN). Eine Zelle
-  // darunter gilt als "leer": sie kann keine Front halten, ein versorgter
-  // Angreifer bricht durch und erobert sie. Verhindert das Dauer-Patt zweier
-  // erschöpfter Zellen, bei dem eine 0-Zelle zwar angegriffen, aber nie
-  // erobert wird.
-  clashHoldMin: 2,
-
-  // Patt-Auflösung (Pixel/Sek.): Stehen sich ZWEI gleich starke, erschöpfte
-  // Zellen gegenüber, ist der Nachschub-Vorteil exakt 0 – die Front fror sonst
-  // dauerhaft ein und KEINE Zelle wurde je erobert (beide bei ~0 hängend).
-  // In diesem exakten Patt entscheidet die Nähe zum Andocken: die Tentakel, die
-  // ihrem Ziel näher ist, gewinnt langsam Boden. Das ist selbstverstärkend und
-  // löst das Duell garantiert auf, ohne echte Nachschub-Vorteile zu übergehen.
-  clashBreak: 30
+  tierRadiusAdd: [0, 4, 8, 13]       // Radius-Zuschlag (Pixel) je Stufe
 };
 
 // Die fünf Zelltypen. attack/heal gelten PRO ÜBERTRAGENEM PUNKT und hängen

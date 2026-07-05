@@ -9,6 +9,29 @@ const ctx = canvas.getContext("2d");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
 const portraitQuery = window.matchMedia("(orientation: portrait)");
+const glowEnabled = !coarsePointer || CONFIG.glowOnMobile;
+
+// Aktueller DPR, gedeckelt (siehe CONFIG.maxDpr) – zentrale Stelle statt
+// window.devicePixelRatio an mehreren Orten einzeln zu lesen/klemmen.
+function currentDpr() { return Math.min(window.devicePixelRatio || 1, CONFIG.maxDpr); }
+
+// Entfernt Elemente, die `keep` nicht erfüllen, IN PLACE (reihenfolgeerhaltend)
+// statt arr.filter(...), das jeden Aufruf ein neues Array alloziert – bei
+// jeden-Tick-Aufrufen (Tentakel/Slashes/CutTrail) spart das GC-Druck.
+function compactInPlace(arr, keep) {
+  let w = 0;
+  for (let i = 0; i < arr.length; i++) {
+    if (keep(arr[i])) arr[w++] = arr[i];
+  }
+  arr.length = w;
+}
+
+// Vorab gerenderter Hintergrund (Vignette + Sterne): hängt nur von
+// Viewport-Größe/-Orientierung ab, nicht vom Simulationszustand – wird daher
+// nur bei resize() (Größe/Drehung ändert sich) neu gezeichnet und in draw()
+// jeden Frame nur noch geblittet, statt Gradient+70 Sterne neu zu berechnen.
+const bgCanvas = document.createElement("canvas");
+const bgCtx = bgCanvas.getContext("2d");
 
 // Hochformat: Das Spielfeld ist querformatig angelegt (LEVEL.width > height).
 // Ist der sichtbare Viewport hochkant, wird das Feld IM Canvas um 90° gedreht
@@ -43,9 +66,12 @@ let aiStates = [];   // pro KI-Fraktion: { owner, profile, timer }
 let gameOver = false;
 let inMenu = true;   // Level-Auswahl sichtbar, Spiel pausiert
 let lastTime = 0;
+let simAccumulator = 0; // Sekunden seit dem letzten abgeschlossenen Sim-Schritt (fixed-timestep, siehe frame())
 
 let debugMode = false;  // Balance-Debug-Anzeige (Toggle über 📊-Knopf / F8)
-let fpsSmooth = 0;      // geglättete Bildrate = Ticks/Sek. der Simulation
+let fpsSmooth = 0;      // geglättete Render-Bildrate (rAF-Callbacks/Sek.) – die
+                        // Simulation läuft seit der Fixed-Timestep-Entkopplung
+                        // separat mit fester Rate (CONFIG.simTickRate, siehe frame())
 
 let view = { scale: 1, offX: 0, offY: 0, portrait: false };
 
@@ -90,7 +116,7 @@ function makeStars() {
 }
 
 function resize() {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = currentDpr();
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
@@ -132,18 +158,52 @@ function resize() {
   // dem Bildschirm, in beiden Modi einheitlich.
   view.offX = (vw - fieldW * view.scale) / 2;
   view.offY = padTop + (availH - fieldH * view.scale) / 2;
+
+  renderBackground();
 }
 
 // Setzt die Canvas-Transform von Welt- auf Bildschirmkoordinaten (inkl. DPR).
 // Querformat: reine Skalierung + Verschiebung. Hochformat: zusätzlich 90° im
 // Uhrzeigersinn gedreht, sodass die Welt-x-Achse (lang) senkrecht verläuft.
-// Umkehrung dazu steht in toWorld().
-function applyWorldTransform(dpr) {
+// Umkehrung dazu steht in toWorld(). c2 wahlweise ein anderer Kontext (z.B.
+// bgCtx beim Vorab-Rendern des Hintergrunds) statt des sichtbaren Canvas.
+function applyWorldTransform(dpr, c2 = ctx) {
   const s = view.scale * dpr;
   if (view.portrait) {
-    ctx.setTransform(0, s, -s, 0, (view.offX + LEVEL.height * view.scale) * dpr, view.offY * dpr);
+    c2.setTransform(0, s, -s, 0, (view.offX + LEVEL.height * view.scale) * dpr, view.offY * dpr);
   } else {
-    ctx.setTransform(s, 0, 0, s, view.offX * dpr, view.offY * dpr);
+    c2.setTransform(s, 0, 0, s, view.offX * dpr, view.offY * dpr);
+  }
+}
+
+// Zeichnet Vignette + dekorative Sterne einmalig auf ein Offscreen-Canvas.
+// Beides hängt nur von Viewport-Größe/-Orientierung (view.*, canvas.width/
+// height) und den (bei Levelstart neu erzeugten) Sternen ab, nicht vom
+// Simulationszustand – draw() muss das daher nicht mehr jeden Frame neu
+// berechnen, sondern blittet nur noch dieses Bild.
+function renderBackground() {
+  const dpr = currentDpr();
+  bgCanvas.width = canvas.width;
+  bgCanvas.height = canvas.height;
+  const vw = canvas.width / dpr, vh = canvas.height / dpr;
+  bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  bgCtx.clearRect(0, 0, vw, vh);
+
+  const vg = bgCtx.createRadialGradient(
+    vw / 2, vh / 2, 100,
+    vw / 2, vh / 2, Math.max(vw, vh) * 0.7
+  );
+  vg.addColorStop(0, "#0d1626");
+  vg.addColorStop(1, "#080e18");
+  bgCtx.fillStyle = vg;
+  bgCtx.fillRect(0, 0, vw, vh);
+
+  applyWorldTransform(dpr, bgCtx);
+  for (const s of stars) {
+    bgCtx.beginPath();
+    bgCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    bgCtx.fillStyle = `rgba(160,190,220,${s.a})`;
+    bgCtx.fill();
   }
 }
 
@@ -262,15 +322,29 @@ function makeTentacle(src, dst) {
     heal: typeOf(src).heal,
     p0, p1, ux, uy, len,
     tail: 0, head: 0,
+    prevTail: 0, prevHead: 0,    // Sim-Zustand vor dem letzten update()-Schritt
+                                 // (siehe snapshotPrevState) – fürs interpolierte Zeichnen
     mode: "grow",
     phase: Math.random() * 10,   // Versatz für die Wellen-Animation
     boostGlow: 0,                // > 0, solange gerade Überschuss durchgeleitet wird (visuell)
     clashGlow: 0,                // > 0, solange die Spitze im Duell steht (visuell)
     pipeline: [],                // unterwegs befindliche Punkte-Pakete (siehe applyMass/update)
+    pendingPush: 0,              // noch nicht als Paket eingereihte, akkumulierte Fluss-Masse
+    pendingTicks: 0,             // Sim-Ticks seit dem letzten Pipeline-Paket (siehe CONFIG.pipelineBatchTicks)
     rate: 0,                     // geglätteter Durchsatz (Wert/Sek.) – treibt die Fluss-Geschwindigkeit
-    dotSpeed: CONFIG.flowDotSpeed,// aktuelle Fluss-/Ankunftsgeschwindigkeit (skaliert mit rate)
+    dotSpeed: CONFIG.flowDotSpeed,// aktuelle Fluss-/Ankunftsgeschwindigkeit (gestuft nach rate)
     dead: false
   };
+}
+
+// Für den fixed-timestep-Sim-Schritt: vor jedem update()-Aufruf den
+// aktuellen head/tail als "vorherigen" Zustand sichern, damit draw()
+// zwischen zwei Sim-Schritten interpolieren kann (siehe frame()).
+function snapshotPrevState() {
+  for (const t of tentacles) {
+    t.prevHead = t.head;
+    t.prevTail = t.tail;
+  }
 }
 
 function pointAt(t, L) {
@@ -313,6 +387,16 @@ function tryCommand(src, dst) {
 // Zellen (Angriff 2) bleibt der bisherige Wert (2 / 2^1 = 1) unverändert.
 function bunkerReduced(attack) {
   return attack / Math.pow(2, CONFIG.bunkerDefense);
+}
+
+// Rein visuelle Fluss-Punkt-Geschwindigkeit, gestuft statt stufenlos nach
+// Durchsatz (t.rate) – siehe CONFIG.flowSpeedTiers. Betrifft NICHT
+// CONFIG.transferRate/die tatsächliche Balance.
+function flowDotSpeedForRate(rate) {
+  for (const tier of CONFIG.flowSpeedTiers) {
+    if (rate < tier.max) return CONFIG.flowDotSpeed * tier.mul;
+  }
+  return CONFIG.flowDotSpeed;
 }
 
 // Masse trifft auf die Zielzelle (kontinuierlich oder von freien Stücken)
@@ -367,27 +451,16 @@ function captureCharge(cell, dmg, byOwner) {
   }
 }
 
-// Gegen-Tentakel zwischen denselben zwei Zellen (andere Besitzer, aktiv)
-function findOpposing(t) {
-  return tentacles.find(o => !o.dead && o !== t && o.src === t.dst && o.dst === t.src &&
-    o.owner !== t.owner && (o.mode === "grow" || o.mode === "flow")) || null;
-}
-
-// Position der gegnerischen Spitze, projiziert auf die eigene Achse
-function opposingTipL(t, o) {
-  const tip = pointAt(o, o.head);
-  return (tip.x - t.p0.x) * t.ux + (tip.y - t.p0.y) * t.uy;
-}
-
 // Nachschub für ein Tentakel-Duell: genau wie ein einseitiger Fluss auf die
-// Produktion der Quelle gedeckelt (_flowBudget/_boostShare, siehe oben) –
-// der gespeicherte Vorrat wird NICHT direkt verkämpft. Zwei gleich starke
-// Zellen im Duell speisen dadurch nur ihre laufende Produktion gegeneinander
-// und pendeln sich zu einem echten Patt an der Front ein, statt sich
-// gegenseitig leerzusaugen. Wird eine Seite zusätzlich von einer dritten
-// Zelle versorgt (Heiler-Kette, Überschuss-Durchleitung), erhöht das ihren
-// Puffer-Anteil (_boostShare) – sie speist mehr als die Produktion allein
-// hergibt und gewinnt die Abnutzung langsam.
+// Produktion der Quelle gedeckelt (_flowBudget/_boostShare, siehe oben) – die
+// SENDENDE Zelle verliert dadurch nie mehr als ihre laufende Produktion. Die
+// gespeiste Kraft trifft aber, mit dem Angriffswert multipliziert, DIREKT
+// die gegnerische Zelle (siehe Duell-Auflösung in update()) und zehrt DEREN
+// gespeicherten Vorrat auf – wer schwächer produziert, wird über die Zeit
+// leergekämpft und verliert die Zelle. Wird eine Seite zusätzlich von einer
+// dritten Zelle versorgt (Heiler-Kette, Überschuss-Durchleitung), erhöht das
+// ihren Puffer-Anteil (_boostShare) – sie speist mehr als die Produktion
+// allein hergibt und gewinnt die Abnutzung schneller.
 function battleFeed(t, dt) {
   const c = t.src;
   const want = CONFIG.transferRate * dt;
@@ -424,12 +497,19 @@ function cutTentacle(t, L) {
 
   // Vorderes Stück [L, head] wird ein freies Stück Richtung Ziel –
   // es übernimmt bereits unterwegs befindliche Punkte-Pakete, die weiter
-  // auf ihr Ziel zufließen.
-  tentacles.push({ ...t, tail: L, head: t.head, mode: "free", dead: false });
+  // auf ihr Ziel zufließen. prevTail/prevHead = eigener aktueller Stand
+  // (kein Sprung beim ersten interpolierten Zeichnen); pendingPush bleibt
+  // beim hinteren Stück (das ihn eingesammelt hat), sonst würde die noch
+  // nicht eingereihte Masse doppelt gezählt.
+  tentacles.push({
+    ...t, tail: L, head: t.head, prevTail: L, prevHead: t.head,
+    mode: "free", dead: false, pendingPush: 0, pendingTicks: 0
+  });
 
   // Hinteres Stück [tail, L]: bekommt eine eigene, leere Pipeline –
   // sonst würden Pakete doppelt ausgeliefert (gleiche Array-Referenz).
   t.head = L;
+  t.prevHead = Math.min(t.prevHead, L);
   t.pipeline = [];
   if (t.mode !== "free") t.mode = "retract"; // hing an der Quelle -> zurückziehen
   return true;
@@ -493,15 +573,23 @@ function update(dt) {
   }
 
   // Tentakel-Duelle erkennen: gegnerische Tentakel zwischen denselben zwei
-  // Zellen laufen im selben Korridor. Berühren sich ihre Spitzen, ringen sie
-  // miteinander, statt aneinander vorbeizuwachsen.
+  // Zellen laufen im selben Korridor. Sobald beide Richtungen aktiv sind,
+  // gilt sofort ein Duell (kein Warten auf Spitzen-Kontakt mehr) – die Front
+  // steht fest in der Korridor-Mitte (siehe Wachstum weiter unten).
+  // Index src->dst einmal pro Tick aufbauen (O(n)) statt für jede Tentakel
+  // linear über alle anderen zu scannen (O(n²) bei vielen Tentakeln).
   for (const t of tentacles) { t._opp = null; t._clash = null; }
+  const activeByRoute = new Map();
+  for (const t of tentacles) {
+    if (t.dead || (t.mode !== "grow" && t.mode !== "flow")) continue;
+    activeByRoute.set(t.src.id + "|" + t.dst.id, t);
+  }
   for (const t of tentacles) {
     if (t.dead || (t.mode !== "grow" && t.mode !== "flow") || t._opp) continue;
-    const o = findOpposing(t);
-    if (!o) continue;
+    const o = activeByRoute.get(t.dst.id + "|" + t.src.id);
+    if (!o || o.owner === t.owner) continue;
     t._opp = o; o._opp = t;
-    if (opposingTipL(t, o) - t.head <= 3) { t._clash = o; o._clash = t; }
+    t._clash = o; o._clash = t;
   }
 
   // Überschuss-Verteilung vorbereiten: Puffer und Produktions-Budget einer
@@ -523,9 +611,17 @@ function update(dt) {
     c._flowBudget = c._flowOut > 0 ? (cellProd(c) * dt) / c._flowOut : 0;
   }
 
-  // Duelle austragen: beide Seiten speisen Kraft aus Produktion und
-  // Überschuss-Puffer; die stärkere Seite (Angriffswert zählt!) drückt die
-  // Spitze der schwächeren zurück. Gleichstand = Patt an der Front.
+  // Duelle austragen: die Front steht fest in der Korridor-Mitte (kein
+  // Vor-/Zurückweichen mehr, siehe Wachstum weiter unten). Beide Seiten
+  // speisen wie gehabt nur aus ihrem produktionsgedeckelten Budget
+  // (battleFeed/_flowBudget/_boostShare) – die eigene Quelle verliert dadurch
+  // nie mehr als ihre laufende Produktion. Die gespeiste Kraft trifft jetzt
+  // aber DIREKT die gegnerische Quellzelle (dieselbe Verbindung, andere
+  // Richtung: t.dst === o.src und o.dst === t.src) statt nur eine
+  // Frontposition zu verschieben. Fällt der Vorrat einer Seite unter 0, wird
+  // sie sofort erobert (damageCell -> captureCell) – ihre Tentakel (inkl. des
+  // laufenden Duells) ziehen sich danach automatisch zum neuen Besitzer
+  // zurück und liefern die transportierte Masse ab.
   const fought = new Set();
   for (const t of tentacles) {
     if (t.dead || !t._clash || fought.has(t)) continue;
@@ -533,75 +629,11 @@ function update(dt) {
     if (o.dead || fought.has(o)) continue;
     fought.add(t); fought.add(o);
 
-    // Kraft beider Seiten: Nachschub × Angriffswert, plus Heimvorteil.
-    // Der Heimvorteil drückt die Front Richtung Korridor-MITTE – nahe der
-    // eigenen Zelle kämpft es sich leichter. ABER: er zählt nur für Zellen mit
-    // echtem gespeichertem Vorrat. Eine LEERE Zelle (Vorrat ~0, egal ob sie
-    // ihre Produktion nur durchreicht) kann keine Front halten – sonst blockiert
-    // ihr 1px-Stummel einen versorgten Angreifer dauerhaft und die 0-Zelle wird
-    // nie erobert. Der Vorrat wird VOR battleFeed abgegriffen (das darunter
-    // Vorrat verbraucht), damit die Prüfung den Zustand zu Beginn des Duells sieht.
-    const reserveT = t.src.units + t.src.boost;
-    const reserveO = o.src.units + o.src.boost;
-    const homeAdv = (x, reserve) =>
-      reserve > CONFIG.clashHoldMin ? CONFIG.clashHomefield * (0.5 - x.head / x.len) * dt : 0;
-    let net = battleFeed(t, dt) * t.attack + homeAdv(t, reserveT)
-            - battleFeed(o, dt) * o.attack - homeAdv(o, reserveO);
+    const dmgT = battleFeed(t, dt) * t.attack;
+    const dmgO = battleFeed(o, dt) * o.attack;
+    if (dmgT > 0) damageCell(t.dst, dmgT, t.owner);
+    if (dmgO > 0 && !o.dead) damageCell(o.dst, dmgO, o.owner);
 
-    // Patt-Auflösung bei ZWEI erschöpften Zellen: Sind beide "leer"
-    // (Reserve <= clashHoldMin), liefert battleFeed nur noch winziges,
-    // schwankendes Produktions-Rauschen (~±0.01) – net pendelt um 0, die Front
-    // zittert ewig um die Mitte und KEINE Zelle wird je erobert (der beobachtete
-    // Bug: beide Zellen dauerhaft bei ~0). In diesem Zustand kann ohnehin keine
-    // Seite eine Front halten (homeAdv ist für beide schon 0), also entscheidet
-    // die Nähe zum Andocken: die Tentakel mit kürzerer Restdistanz (len-head)
-    // erhält einen klaren Vorstoß, der das Rauschen dominiert. Da der Verlierer
-    // immer Boden räumt (siehe unten), entfernt er sich dadurch nur weiter ->
-    // selbstverstärkend, das Duell löst sich auf und der Sieger dockt an und
-    // erobert. Greift NUR wenn BEIDE erschöpft sind – ein realer Nachschub-
-    // Vorteil (mind. eine versorgte Zelle) bleibt unangetastet.
-    if (reserveT <= CONFIG.clashHoldMin && reserveO <= CONFIG.clashHoldMin) {
-      const remT = t.len - t.head, remO = o.len - o.head;
-      if (Math.abs(remT - remO) > 0.5) {
-        net = (remT < remO ? 1 : -1) * (CONFIG.clashBreak / CONFIG.lengthPerUnit) * dt;
-      }
-    }
-
-    if (net !== 0) {
-      const winner = net > 0 ? t : o;
-      const loser  = net > 0 ? o : t;
-      // Der Verlierer WEICHT immer (räumt Boden); der Gewinner rückt getrennt
-      // davon nach, soweit Platz UND Substanz reichen. Diese ENTKOPPLUNG ist der
-      // Kern des Fixes: früher zog ein einziger Vorstoß-Wert Verlierer und
-      // Gewinner gemeinsam, gedeckelt durch (a) freien Korridor vor dem Gewinner
-      // und (b) dessen Vorrat. Ein Angreifer, der sein Ziel schon erreicht hatte
-      // (head == len → kein Platz) ODER dessen Quelle leer war, konnte damit den
-      // letzten 1px-Stummel des Gegners NICHT wegdrücken – zwei erschöpfte Zellen
-      // froren dauerhaft ein, die angegriffene 0-Zelle wurde nie erobert.
-      // Jetzt: Rückzug immer (an den battleFeed-gedeckelten Netto-Vorteil
-      // gekoppelt), Nachrücken kostet wie bisher Vorrat – kann der Gewinner es
-      // sich nicht leisten, bleibt eine Lücke, die zum Andocken/Töten reicht.
-      const retreat = Math.min(
-        Math.abs(net) * CONFIG.lengthPerUnit,
-        loser.head - loser.tail);
-      if (retreat > 0) {
-        loser.head = Math.max(loser.tail, loser.head - retreat);
-        const room = Math.min(retreat, winner.len - winner.head);
-        if (room > 0) {
-          const affordable = Math.min(room,
-            Math.max(0, winner.src.units + winner.src.boost) * CONFIG.lengthPerUnit);
-          if (affordable > 0) {
-            const cost = affordable / CONFIG.lengthPerUnit;
-            const fromBoost = Math.min(winner.src.boost, cost);
-            winner.src.boost -= fromBoost;
-            winner.src.units -= (cost - fromBoost);
-            winner.head += affordable;
-          }
-        }
-        if (loser.mode === "flow") loser.mode = "grow"; // vom Ziel weggedrückt
-        if (loser.head - loser.tail < 0.5) loser.dead = true; // Tentakel zerstört
-      }
-    }
     t.clashGlow = o.clashGlow = 0.25;
   }
 
@@ -622,12 +654,23 @@ function update(dt) {
   for (const t of tentacles) {
     if (t.dead) continue;
 
+    // Noch nicht als Paket eingereihte, aufsummierte Fluss-Masse (siehe
+    // CONFIG.pipelineBatchTicks unten) spätestens hier ausliefern, sobald
+    // die Tentakel den Flow-Modus verlässt (Rückzug/Abtrennung/Eroberung) –
+    // sonst würde angesammelte Masse nie in die Pipeline gelangen.
+    if (t.mode !== "flow" && t.pendingPush > 0) {
+      t.pipeline.push({ amount: t.pendingPush, remaining: t.len / t.dotSpeed, travel: t.len / t.dotSpeed });
+      t.pendingPush = 0; t.pendingTicks = 0;
+    }
+
     if (t.mode === "grow") {
-      if (!t._clash) {
-        // Wachstum kostet Punkte; Überschuss-Puffer wird zuerst angezapft.
-        // Vor einer gegnerischen Spitze wird gestoppt (dort beginnt das Duell).
-        let limit = t.len - t.head;
-        if (t._opp) limit = Math.min(limit, Math.max(0, opposingTipL(t, t._opp) - t.head - 2));
+      // Wachstum kostet Punkte; Überschuss-Puffer wird zuerst angezapft.
+      // Im Duell (_clash) ist das Wachstumsziel nur die KORRIDOR-MITTE statt
+      // des vollen Ziels – die Front steht dort fest, kein Vor-/Zurückweichen
+      // mehr (siehe Duell-Auflösung weiter oben).
+      const target = t._clash ? Math.min(t.len, t.len / 2) : t.len;
+      const limit = target - t.head;
+      if (limit > 0) {
         const want = Math.min(CONFIG.tentacleSpeed * dt, limit);
         const cost = want / CONFIG.lengthPerUnit;
         if (want > 0 && t.src.units + t.src.boost >= cost) {
@@ -636,8 +679,8 @@ function update(dt) {
           t.src.units -= (cost - fromBoost);
           t.head += want;
         }
-        if (t.head >= t.len - 0.001) t.mode = "flow"; // angedockt!
       }
+      if (t.head >= target - 0.001) t.mode = "flow"; // angedockt bzw. Front erreicht!
 
     } else if (t.mode === "flow" && t._clash) {
       // Angedockt, aber im Duell: alle Energie geht in den Kampf (kein Transfer)
@@ -679,10 +722,19 @@ function update(dt) {
           t.src.boost -= fromBoost;
           t.src.units -= (total - fromBoost);
           if (fromBoost > 0.0001) t.boostGlow = 0.35;
-          // Laufzeit bis zum Ziel = Länge / Fluss-Geschwindigkeit (t.dotSpeed).
-          // travel merkt sich die Anfangslaufzeit, damit die Animation die
-          // "Front" exakt abbilden kann, auch wenn dotSpeed später variiert.
-          t.pipeline.push({ amount: total, remaining: t.len / t.dotSpeed, travel: t.len / t.dotSpeed });
+          // Statt jeden Sim-Tick ein eigenes Paket in die Pipeline zu legen
+          // (bei simTickRate=30 immer noch ~30/Sek.), wird über
+          // CONFIG.pipelineBatchTicks Ticks aufsummiert und dann als EIN
+          // Paket eingereiht – spart Push/Shift-Overhead. Laufzeit bis zum
+          // Ziel = Länge / Fluss-Geschwindigkeit (t.dotSpeed); travel merkt
+          // sich die Anfangslaufzeit, damit die Animation die "Front" exakt
+          // abbilden kann, auch wenn dotSpeed später variiert.
+          t.pendingPush += total;
+          t.pendingTicks++;
+          if (t.pendingTicks >= CONFIG.pipelineBatchTicks) {
+            t.pipeline.push({ amount: t.pendingPush, remaining: t.len / t.dotSpeed, travel: t.len / t.dotSpeed });
+            t.pendingPush = 0; t.pendingTicks = 0;
+          }
         }
       }
 
@@ -690,11 +742,12 @@ function update(dt) {
       // die Animation widerspiegelt, wie viel Angriff/Heilung pro Sekunde
       // gerade fließt: value/Sek. = übertragene Masse × Wert pro Punkt.
       // Geglättet (EMA), damit die Punkte nicht zappeln; nie langsamer als
-      // die Basisgeschwindigkeit, stärkere Ströme sichtbar schneller.
+      // die Basisgeschwindigkeit, stärkere Ströme sichtbar schneller in
+      // festen Stufen statt stufenlos (siehe CONFIG.flowSpeedTiers).
       const value = hostile ? per : t.heal;
       const inst = (total / dt) * value;
       t.rate += (inst - t.rate) * Math.min(1, dt * 6);
-      t.dotSpeed = CONFIG.flowDotSpeed * (1 + Math.min(1.5, t.rate / 3));
+      t.dotSpeed = flowDotSpeedForRate(t.rate);
 
     } else if (t.mode === "retract") {
       // Einziehen: Masse fließt zur Quelle zurück (Überschuss wird weitergeleitet)
@@ -719,13 +772,15 @@ function update(dt) {
   }
   // Tentakel mit noch ausstehender Pipeline erst entfernen, wenn auch die
   // letzten unterwegs befindlichen Punkte-Pakete ausgeliefert wurden.
-  tentacles = tentacles.filter(t => !t.dead || t.pipeline.length);
+  // In-place statt .filter(), um bei hoher Tentakelzahl nicht jeden Tick ein
+  // neues Array zu allozieren (GC-Druck auf schwacher Mobile-Hardware).
+  compactInPlace(tentacles, t => !t.dead || t.pipeline.length);
 
   // Effekte altern lassen
   for (const s of slashes) s.age += dt;
-  slashes = slashes.filter(s => s.age < 0.8);
+  compactInPlace(slashes, s => s.age < 0.8);
   const nowMs = performance.now();
-  cutTrail = cutTrail.filter(p => nowMs - p.t < 350);
+  compactInPlace(cutTrail, p => nowMs - p.t < 350);
 
   // KI-Fraktionen takten, jede mit eigenem Intervall und Profil
   // (im Testlabor steuert der Spieler alle Seiten selbst)
@@ -947,9 +1002,15 @@ function drawCellShape(c2, type, x, y, r, color, glow) {
   if (type === "healer") drawHealerBadge(c2, x, y, r, color);
 }
 
-// Tentakel als leicht wellige Linie mit Spitze und Fluss-Punkten
-function drawTentacle(t, now) {
-  const seg = t.head - t.tail;
+// Tentakel als leicht wellige Linie mit Spitze und Fluss-Punkten.
+// alpha (0..1): Fortschritt seit dem letzten abgeschlossenen Sim-Schritt
+// (siehe frame()) – head/tail werden zwischen dem vorherigen und dem
+// aktuellen Sim-Zustand interpoliert, damit die Bewegung trotz fester,
+// niedrigerer Simulationsrate (CONFIG.simTickRate) flüssig aussieht.
+function drawTentacle(t, now, alpha) {
+  const head = t.prevHead + (t.head - t.prevHead) * alpha;
+  const tail = t.prevTail + (t.tail - t.prevTail) * alpha;
+  const seg = head - tail;
   if (seg < 1) return;
   const color = OWNER_COLOR[t.owner];
   const nx = -t.uy, ny = t.ux; // senkrecht zur Flugrichtung
@@ -959,15 +1020,14 @@ function drawTentacle(t, now) {
     Math.sin(L * 0.045 + now / 300 + t.phase) * 5 * Math.sin(Math.PI * L / t.len);
 
   ctx.save();
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 6;
+  if (glowEnabled) { ctx.shadowColor = color; ctx.shadowBlur = 6; }
   ctx.strokeStyle = hexToRgba(color, 0.85);
   ctx.lineWidth = 3;
   ctx.lineCap = "round";
   ctx.beginPath();
   const steps = Math.max(6, Math.round(seg / 12));
   for (let i = 0; i <= steps; i++) {
-    const L = t.tail + seg * (i / steps);
+    const L = tail + seg * (i / steps);
     const o = wob(L);
     const px = t.p0.x + t.ux * L + nx * o;
     const py = t.p0.y + t.uy * L + ny * o;
@@ -976,9 +1036,9 @@ function drawTentacle(t, now) {
   ctx.stroke();
 
   // Spitze (Wachstums- bzw. Vorderende)
-  const ho = wob(t.head);
-  const tipX = t.p0.x + t.ux * t.head + nx * ho;
-  const tipY = t.p0.y + t.uy * t.head + ny * ho;
+  const ho = wob(head);
+  const tipX = t.p0.x + t.ux * head + nx * ho;
+  const tipY = t.p0.y + t.uy * head + ny * ho;
   ctx.beginPath();
   ctx.arc(tipX, tipY, 4.2, 0, Math.PI * 2);
   ctx.fillStyle = color;
@@ -1001,8 +1061,7 @@ function drawTentacle(t, now) {
     const a = Math.min(1, t.clashGlow / 0.25);
     const flicker = reducedMotion ? 1 : 0.75 + 0.25 * Math.sin(now / 30 + t.phase * 7);
     ctx.save();
-    ctx.shadowColor = "#ffffff";
-    ctx.shadowBlur = 14;
+    if (glowEnabled) { ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 14; }
     ctx.beginPath();
     ctx.arc(tipX, tipY, (3 + 3 * a) * flicker, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(255,255,255,${0.85 * a})`;
@@ -1020,14 +1079,14 @@ function drawTentacle(t, now) {
     const spacing = 26;
     const shift = (now / 1000 * CONFIG.flowDotSpeed * (boosted ? 1.5 : 1)) % spacing;
     ctx.fillStyle = hexToRgba("#ffffff", boosted ? 0.95 : 0.8);
-    for (let L = t.tail + (dir === 1 ? shift : spacing - shift); L < t.head; L += spacing) {
+    for (let L = tail + (dir === 1 ? shift : spacing - shift); L < head; L += spacing) {
       const o = wob(L);
       ctx.beginPath();
       ctx.arc(t.p0.x + t.ux * L + nx * o, t.p0.y + t.uy * L + ny * o, boosted ? 2.1 : 1.7, 0, Math.PI * 2);
       ctx.fill();
       if (boosted) { // versetzter Zweitstrom als "Verstärkt"-Signal
         const L2 = L + spacing / 2;
-        if (L2 < t.head) {
+        if (L2 < head) {
           const o2 = wob(L2);
           ctx.beginPath();
           ctx.arc(t.p0.x + t.ux * L2 + nx * o2, t.p0.y + t.uy * L2 + ny * o2, 1.5, 0, Math.PI * 2);
@@ -1037,27 +1096,27 @@ function drawTentacle(t, now) {
     }
   }
 
-  // Fluss-Punkte für angedockte, tatsächlich übertragende Tentakel: Es wird
-  // JEDEN Frame ein neues Punkte-Paket in die Pipeline gelegt (bei 60 FPS
-  // ~60 Pakete/Sekunde) – ein Punkt PRO Paket würde also zu einer
-  // durchgehenden Fläche verschmelzen. Stattdessen zeigt das älteste Paket
-  // (t.pipeline[0], am nächsten an der Zustellung) nur die aktuelle
-  // "Front" des Flusses an; sichtbare, klar getrennte Punkte werden im
-  // gewohnten Abstand von der Quelle bis zu dieser Front gezeichnet – die
-  // Front wächst dabei genauso schnell, wie die echten Pakete unterwegs
-  // sind, und erreicht das Ziel nicht sofort über die ganze Strecke.
+  // Fluss-Punkte für angedockte, tatsächlich übertragende Tentakel: Punkte-
+  // Pakete werden in der Pipeline seltener als jeden Sim-Tick gebündelt
+  // (siehe CONFIG.pipelineBatchTicks in update()). Das älteste Paket
+  // (t.pipeline[0], am nächsten an der Zustellung) zeigt trotzdem weiterhin
+  // nur die aktuelle "Front" des Flusses an; sichtbare, klar getrennte
+  // Punkte werden im gewohnten Abstand von der Quelle bis zu dieser Front
+  // gezeichnet – die Front wächst dabei genauso schnell, wie die echten
+  // Pakete unterwegs sind, und erreicht das Ziel nicht sofort über die
+  // ganze Strecke.
   if (!reducedMotion && t.pipeline.length) {
     const lead = t.pipeline[0];
     const travelTime = lead.travel || (t.len / CONFIG.flowDotSpeed);
     const boosted = t.boostGlow > 0;
     const leadFrac = 1 - Math.max(0, Math.min(1, lead.remaining / travelTime));
-    const leadL = t.tail + leadFrac * (t.head - t.tail);
+    const leadL = tail + leadFrac * (head - tail);
     const spacing = 26;
     // Punkt-Geschwindigkeit = tatsächliche Fluss-Geschwindigkeit der Tentakel
     const dotSpeed = (t.dotSpeed || CONFIG.flowDotSpeed) * (boosted ? 1.5 : 1);
     const shift = (now / 1000 * dotSpeed) % spacing;
     ctx.fillStyle = hexToRgba("#ffffff", boosted ? 0.95 : 0.8);
-    for (let L = t.tail + shift; L < leadL; L += spacing) {
+    for (let L = tail + shift; L < leadL; L += spacing) {
       const o = wob(L);
       ctx.beginPath();
       ctx.arc(t.p0.x + t.ux * L + nx * o, t.p0.y + t.uy * L + ny * o, boosted ? 2.1 : 1.7, 0, Math.PI * 2);
@@ -1066,36 +1125,20 @@ function drawTentacle(t, now) {
   }
 }
 
-function draw(now) {
-  const dpr = window.devicePixelRatio || 1;
-  // Canvas-Fläche in ihrer eigenen (ggf. gedrehten) Größe – siehe resize().
-  const vw = canvas.width / dpr, vh = canvas.height / dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, vw, vh);
+function draw(now, alpha) {
+  const dpr = currentDpr();
 
-  // Hintergrund-Vignette
-  const vg = ctx.createRadialGradient(
-    vw / 2, vh / 2, 100,
-    vw / 2, vh / 2, Math.max(vw, vh) * 0.7
-  );
-  vg.addColorStop(0, "#0d1626");
-  vg.addColorStop(1, "#080e18");
-  ctx.fillStyle = vg;
-  ctx.fillRect(0, 0, vw, vh);
+  // Vorgerenderten Hintergrund (Vignette + Sterne, siehe renderBackground())
+  // blitten statt jeden Frame neu zu zeichnen.
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bgCanvas, 0, 0);
 
   // In Weltkoordinaten wechseln (im Hochformat um 90° gedreht)
   applyWorldTransform(dpr);
 
-  // Dekorative Hintergrundpunkte
-  for (const s of stars) {
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(160,190,220,${s.a})`;
-    ctx.fill();
-  }
-
   // Tentakel (unter den Zellen)
-  for (const t of tentacles) drawTentacle(t, now);
+  for (const t of tentacles) drawTentacle(t, now, alpha);
 
   // Drag-Vorschau: gestrichelte Linie + Kosten (Farbe = Besitzer der Quelle)
   if (dragSource) {
@@ -1173,7 +1216,7 @@ function draw(now) {
       ? Math.max(0, Math.min(1, c.units / CONFIG.captureCharge))
       : Math.max(0, Math.min(1, c.units / cellMax(c)));
 
-    drawCellShape(ctx, c.type, c.x, c.y, r, color, true);
+    drawCellShape(ctx, c.type, c.x, c.y, r, color, glowEnabled);
 
     // Ausbaustufe: kleine Ringe direkt am Zellrand als Rang-Anzeige
     if (c.tier > 0) {
@@ -1288,13 +1331,36 @@ function draw(now) {
    HAUPTSCHLEIFE
    ====================================================================== */
 
+const SIM_MAX_STEPS_PER_FRAME = 5; // verhindert eine "Spiral of Death" nach Tab-Wechsel/Sperrbildschirm
+
+// Simulation und Rendering sind entkoppelt: update() läuft mit fester Rate
+// (CONFIG.simTickRate), unabhängig davon, wie schnell rAF tatsächlich feuert.
+// draw() läuft weiterhin bei jedem rAF-Callback und interpoliert Tentakel-
+// Positionen zwischen dem vorherigen und dem aktuellen Sim-Schritt (alpha),
+// damit die Animation trotz selteneren Rechnens flüssig bleibt.
 function frame(now) {
-  const dt = Math.min(0.05, (now - lastTime) / 1000 || 0);
+  const simDt = 1 / CONFIG.simTickRate;
+  // Größerer Spike-Guard als früher ok: die while-Schleife unten begrenzt
+  // ohnehin, wie viele Sim-Schritte ein einzelner Frame nachholen darf.
+  const frameDt = Math.min(0.25, (now - lastTime) / 1000 || 0);
   lastTime = now;
-  update(dt);
-  draw(now);
+  simAccumulator += frameDt;
+
+  let steps = 0;
+  while (simAccumulator >= simDt && steps < SIM_MAX_STEPS_PER_FRAME) {
+    snapshotPrevState();
+    update(simDt);
+    simAccumulator -= simDt;
+    steps++;
+  }
+  // Sind wir wegen des Schritt-Limits zurückgefallen, nicht ewig nachlaufen
+  // lassen (sonst häufen sich nach einer Slow-Phase immer mehr Sim-Schritte an).
+  if (steps === SIM_MAX_STEPS_PER_FRAME) simAccumulator = 0;
+
+  const alpha = Math.max(0, Math.min(1, simAccumulator / simDt));
+  draw(now, alpha);
   updateHud();
-  if (dt > 0) fpsSmooth += (1 / dt - fpsSmooth) * Math.min(1, dt * 4);
+  if (frameDt > 0) fpsSmooth += (1 / frameDt - fpsSmooth) * Math.min(1, frameDt * 4);
   if (debugMode) updateDebugPanel();
   requestAnimationFrame(frame);
 }

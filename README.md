@@ -107,13 +107,13 @@ Bunker.
   angezeigt. Ohne Vorrat stockt das Wachstum.
 - **Tentakel-Slots:** Jede Zelle darf 1 Tentakel ausfahren, plus 1 pro 25
   aktuelle Punkte (max. 4). Anzeige als kleine Punkte unter der Zelle.
-- **Heilen, einseitiges Angreifen UND Duelle laufen über dieselbe Produktions-
-  Deckelung:** Heil-Flüsse, ein Angriff OHNE Gegen-Tentakel und auch ein
-  echtes **Tentakel-Duell** (siehe unten) sind alle auf die Produktion der
-  Quelle gedeckelt – Kämpfen kostet nie den gespeicherten Vorrat, nur die
-  laufende Produktion. Zwei gleich starke Zellen im Duell speisen dadurch
-  exakt gleich viel gegeneinander und pendeln sich zu einem echten Patt ein,
-  statt sich gegenseitig leerzusaugen.
+- **Heilen und einseitiges Angreifen laufen über die Produktions-Deckelung:**
+  Heil-Flüsse und ein Angriff OHNE Gegen-Tentakel kosten die SENDENDE Zelle
+  nie mehr als ihre laufende Produktion – der gespeicherte Vorrat sinkt dabei
+  nicht. In einem echten **Tentakel-Duell** (siehe unten) speist jede Seite
+  zwar ebenfalls nur aus ihrer Produktion, trifft damit aber direkt den
+  gespeicherten Vorrat der GEGNERISCHEN Zelle – dort kann ein Duell also
+  tatsächlich die Heimzelle leerkämpfen.
 - **Verzögerte Wirkung:** Übertragene Punkte werden beim Absenden von der
   Quelle abgezogen, wirken (heilen/schaden) am Ziel aber erst, nachdem sie
   sichtbar die Tentakel entlang geflossen sind – die Laufzeit entspricht der
@@ -127,18 +127,18 @@ Bunker.
   schnelleren Punktestrom).
 - **Einbahn-Regel:** Zwischen zwei befreundeten Zellen ist immer nur eine
   Verbindungsrichtung gleichzeitig möglich.
-- **Tentakel-Duelle:** Gegnerische Tentakel zwischen denselben zwei Zellen
-  treffen sich im Korridor und ringen (weiß glühende Front). Beide Seiten
-  speisen Punkte aus ihrer laufenden Produktion (nicht aus dem Vorrat!); bei
-  gleicher Produktion ist das ein echtes Patt. Wird eine Seite zusätzlich von
-  einer anderen eigenen Zelle versorgt (Heiler-Kette, Überschuss-Durch-
-  leitung), speist sie mehr als ihre eigene Produktion hergibt und gewinnt die
-  Abnutzung langsam. Ein **Heimvorteil** (stark an der eigenen Zelle, null in
-  der Mitte) sorgt zusätzlich dafür, dass sich gleich starke Parteien in der
-  Korridor-Mitte einpendeln. Sind hingegen **beide** Zellen erschöpft (Vorrat
-  leer), kann keine mehr eine Front halten: Dann bricht die Tentakel durch,
-  die ihrem Ziel näher ist, und erobert – das Duell friert nicht bei zwei
-  0-Zellen ein.
+- **Tentakel-Duelle:** Fahren zwei gegnerische Zellen gleichzeitig Tentakel
+  gegeneinander aus, gilt sofort ein Duell – die Front steht fest in der
+  Korridor-Mitte (kein Vor- oder Zurückweichen). Beide Seiten speisen Punkte
+  aus ihrer laufenden Produktion (die eigene Quelle verliert nie mehr als
+  ihre Produktion), aber diese Kraft trifft direkt die gegnerische Zelle wie
+  ein echter Angriff. Bei gleicher Produktion zehren sich beide Zellen also
+  gleich schnell auf; sinkt der Vorrat einer Seite unter 0, wird ihre Zelle
+  sofort erobert – ihre Tentakel (auch die gerade im Duell) ziehen sich zum
+  neuen Besitzer zurück und liefern die transportierte Masse ab. Wird eine
+  Seite zusätzlich von einer anderen eigenen Zelle versorgt (Heiler-Kette,
+  Überschuss-Durchleitung), speist sie mehr als ihre eigene Produktion
+  hergibt und gewinnt die Abnutzung schneller.
 - **Eroberung (eigene/gegnerische Zellen):** Fällt der Vorrat unter 0,
   wechselt die Zelle sofort den Besitzer. Ihre noch ausgefahrenen Tentakel
   ziehen sich automatisch ein – die zurückfließende Masse zählt für den NEUEN
@@ -171,7 +171,7 @@ Kein Build-Schritt: alle Dateien sind direkt editierbar.
 
 | Datei | Inhalt |
 |---|---|
-| `js/config.js` | Alle Stellschrauben: `CONFIG` (Geschwindigkeiten, Kosten, Slots, Heimvorteil), `CELL_TYPES`, Fraktionsfarben, `AI_PROFILES` (Leicht/Mittel/Schwer) |
+| `js/config.js` | Alle Stellschrauben: `CONFIG` (Geschwindigkeiten, Kosten, Slots), `CELL_TYPES`, Fraktionsfarben, `AI_PROFILES` (Leicht/Mittel/Schwer) |
 | `js/levels.js` | Handgebaute Level (Sandbox + Kampagnen-Schlüssel-Level) |
 | `js/mapgen.js` | Karten-Generator (symmetrisch/zufällig, Spielbarkeits-Check) |
 | `js/campaign.js` | Schwierigkeitskurve der 50 Level, Fortschritts-Speicherung |
