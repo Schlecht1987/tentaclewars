@@ -47,7 +47,7 @@ body {
 .status { display: flex; align-items: center; gap: 14px; font-size: 13px; }
 .chip { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
 .chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-#restart, #btnLevels, #btnDebug, #btnBalance {
+#restart, #btnLevels, #btnPause, #btnDebug, #btnBalance {
   pointer-events: auto; cursor: pointer;
   background: transparent; color: var(--dim);
   border: 1px solid rgba(133,147,161,.35); border-radius: 6px;
@@ -56,8 +56,10 @@ body {
 }
 #restart:hover, #restart:focus-visible,
 #btnLevels:hover, #btnLevels:focus-visible,
+#btnPause:hover, #btnPause:focus-visible,
 #btnDebug:hover, #btnDebug:focus-visible,
 #btnBalance:hover, #btnBalance:focus-visible { color: var(--text); border-color: var(--text); outline: none; }
+#btnPause.active { color: var(--player); border-color: var(--player); }
 
 /* ================= BALANCE-DEBUG-ANZEIGE ================= */
 .debug-panel {

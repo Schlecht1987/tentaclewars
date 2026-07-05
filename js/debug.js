@@ -7,14 +7,22 @@
    dem etwas falsch läuft – zum Weitergeben (Datei oder Zwischenablage).
 
    Bedienung im Spiel:
-     • Knopf "🐞" oben im HUD           → lädt einen JSON-Schnappschuss herunter
-     • Taste  F9                        → lädt einen JSON-Schnappschuss herunter
-     • Taste  Shift+F9                  → kopiert den Schnappschuss in die Zwischenablage
+     • Knopf "🐞" oben im HUD           → Export (siehe unten), auch am Handy per Antippen
+     • Taste  F9                        → derselbe Export wie der 🐞-Knopf
+     • Taste  Shift+F9                  → kopiert den aktuellen Schnappschuss in die Zwischenablage
+
+   Was genau exportiert wird, hängt von der Balance-Anzeige (📊/F8) ab:
+     • AUS  → nur der aktuelle Schnappschuss (wie bisher)
+     • AN   → die "Blackbox": eine rollierende Aufzeichnung der letzten 10
+              Sekunden Spielgeschehen (inkl. Performance-Werten je Frame),
+              die automatisch mitläuft, solange die Balance-Anzeige an ist –
+              einfach 🐞/F9 drücken, sobald ein Bug auffällt.
 
    Bedienung in der Browser-Konsole (F12):
      • zkDebug()        – Schnappschuss in die Konsole legen + Zwischenablage + zurückgeben
-     • zkDownload()     – Schnappschuss als Datei herunterladen
-     • zkCopy()         – Schnappschuss in die Zwischenablage kopieren
+     • zkDownload()     – aktuellen Schnappschuss als Datei herunterladen
+     • zkCopy()         – aktuellen Schnappschuss in die Zwischenablage kopieren
+     • zkDownloadBlackbox() – die letzten 10s (Blackbox) als Datei herunterladen
      • zkRecord(6)      – 6 Sekunden lang aufzeichnen (alle 200 ms) und als Zeitleiste herunterladen
 
    Dieses Modul deklariert nur Funktionen/Handler; es führt beim Laden keine
@@ -81,8 +89,8 @@ function zkAnomalies() {
       out.push(`${ref}: neutral aber bereits voll geladen (${zkRound(c.units)}/${cap}) – Eroberung nicht ausgelöst?`);
     const tm = c.tierMax || 0;
     if ((c.tier || 0) > tm) out.push(`${ref}: tier ${c.tier} > tierMax ${tm}`);
-    const used = outgoing(c).length, cap = maxSlots(c);
-    if (used > cap) out.push(`${ref}: führt ${used} Tentakel, erlaubt sind nur ${cap} (Slot-Limit überschritten)`);
+    const used = outgoing(c).length, slotCap = maxSlots(c);
+    if (used > slotCap) out.push(`${ref}: führt ${used} Tentakel, erlaubt sind nur ${slotCap} (Slot-Limit überschritten)`);
   }
 
   for (const t of tentacles) {
@@ -114,7 +122,10 @@ function zkAnomalies() {
 }
 
 // Vollständiger Schnappschuss des aktuellen Frames als schlichtes Objekt.
-function zkSnapshot() {
+// includeStatic=false lässt CONFIG/CELL_TYPES weg (ändern sich nie zur
+// Laufzeit) – spart Platz, wenn viele Schnappschüsse gespeichert werden
+// (siehe Blackbox-Aufzeichnung unten).
+function zkSnapshot(includeStatic = true) {
   const id = zkCellIndex();
   const cur = typeof currentRef !== "undefined" ? currentRef : null;
   return {
@@ -124,11 +135,21 @@ function zkSnapshot() {
       userAgent: navigator.userAgent,
       protocol: location.protocol,
       viewport: { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio || 1 },
-      reducedMotion: typeof reducedMotion !== "undefined" ? reducedMotion : null
+      reducedMotion: typeof reducedMotion !== "undefined" ? reducedMotion : null,
+      // Performance-Kennzahlen (geglättet, siehe game.js frame()) – Basis für die
+      // Bottleneck-Suche bei "wird langsam, wenn viele Zellen/Tentakel da sind".
+      perf: {
+        fps: zkRound(typeof fpsSmooth !== "undefined" ? fpsSmooth : null),
+        updateMs: zkRound(typeof updateMsSmooth !== "undefined" ? updateMsSmooth : null),
+        drawMs: zkRound(typeof drawMsSmooth !== "undefined" ? drawMsSmooth : null),
+        cellCount: cells.length,
+        tentacleCount: tentacles.length
+      }
     },
     state: {
       inMenu: typeof inMenu !== "undefined" ? inMenu : null,
       gameOver: typeof gameOver !== "undefined" ? gameOver : null,
+      paused: typeof paused !== "undefined" ? paused : null,
       ref: cur,
       selected: selected ? id.get(selected) : null,
       dragSource: dragSource ? id.get(dragSource) : null
@@ -163,8 +184,8 @@ function zkSnapshot() {
       opposing: !!t._opp, clashing: !!t._clash
     })),
     anomalies: zkAnomalies(),
-    config: typeof CONFIG !== "undefined" ? CONFIG : null,
-    cellTypes: typeof CELL_TYPES !== "undefined" ? CELL_TYPES : null
+    config: includeStatic && typeof CONFIG !== "undefined" ? CONFIG : undefined,
+    cellTypes: includeStatic && typeof CELL_TYPES !== "undefined" ? CELL_TYPES : undefined
   };
 }
 
@@ -174,7 +195,11 @@ function zkTextSummary(snap) {
   const L = [];
   L.push(`Zellkrieg-Debug – ${snap.meta.generated}`);
   if (snap.level) L.push(`Level: ${snap.level.name}${snap.level.sandbox ? " (Sandbox)" : ""}  ${snap.state.ref ? JSON.stringify(snap.state.ref) : ""}`);
-  L.push(`Zustand: ${snap.state.inMenu ? "im Menü" : "läuft"}${snap.state.gameOver ? ", Spiel vorbei" : ""}`);
+  L.push(`Zustand: ${snap.state.inMenu ? "im Menü" : "läuft"}${snap.state.gameOver ? ", Spiel vorbei" : ""}${snap.state.paused ? ", PAUSIERT" : ""}`);
+  if (snap.meta.perf) {
+    const p = snap.meta.perf;
+    L.push(`Performance: ${p.fps} FPS · Sim ${p.updateMs}ms · Zeichnen ${p.drawMs}ms · ${p.cellCount} Zellen · ${p.tentacleCount} Tentakel`);
+  }
   L.push("Fraktionen:");
   for (const [o, s] of Object.entries(snap.ownerSummary)) {
     L.push(`  ${o}: ${s.cells} Zellen, ${s.units} Vorrat, ${s.tentacles} Tentakel (${s.inFlight}px unterwegs)`);
@@ -263,19 +288,91 @@ function zkRecord(seconds = 6, stepMs = 200) {
   }, stepMs);
 }
 
+/* ======================================================================
+   BLACKBOX – rollierende Aufzeichnung der letzten 10 Sekunden
+   ----------------------------------------------------------------------
+   Läuft automatisch mit, solange die Balance-Anzeige (debugMode) an ist
+   (getaktet von frame() in js/game.js) – KEIN separater Start/Stopp nötig.
+   Alle ZK_BLACKBOX_STEP_MS wird ein Schnappschuss angehängt, alles älter
+   als ZK_BLACKBOX_WINDOW_MS wird verworfen, sodass immer nur die letzten
+   ~10s im Speicher liegen (kein unbegrenztes Wachstum). Tritt ein Bug auf,
+   reicht ein Tippen auf 🐞 (oder F9), um genau dieses Fenster als Datei zu
+   bekommen – funktioniert auch am Handy, da derselbe Knopf wie für den
+   normalen Debug-Export genutzt wird.
+   ====================================================================== */
+
+const ZK_BLACKBOX_WINDOW_MS = 10000;
+const ZK_BLACKBOX_STEP_MS = 200;
+let zkBlackbox = [];
+let zkBlackboxLastT = 0;
+
+function zkBlackboxTick() {
+  const now = performance.now();
+  if (now - zkBlackboxLastT < ZK_BLACKBOX_STEP_MS) return;
+  zkBlackboxLastT = now;
+  zkBlackbox.push({ t: now, snap: zkSnapshot(false) });
+  const cutoff = now - ZK_BLACKBOX_WINDOW_MS;
+  while (zkBlackbox.length && zkBlackbox[0].t < cutoff) zkBlackbox.shift();
+}
+
+// Bei Levelstart/Neustart aufrufen, damit die Blackbox nicht Frames aus
+// einem vorherigen Level enthält.
+function zkBlackboxReset() {
+  zkBlackbox = [];
+  zkBlackboxLastT = 0;
+}
+
+// Blackbox als Datei herunterladen: Kurzfassung + aktueller Vollzustand
+// (inkl. CONFIG/CELL_TYPES) + die gepufferten Frames der letzten ~10s.
+function zkDownloadBlackbox() {
+  const current = zkSnapshot(true);
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const nowMs = performance.now();
+  const frames = zkBlackbox.map(f => ({ tAgoMs: Math.round(nowMs - f.t), snap: f.snap }));
+  const payload = {
+    app: "Zellkrieg", kind: "blackbox",
+    windowMs: ZK_BLACKBOX_WINDOW_MS, stepMs: ZK_BLACKBOX_STEP_MS,
+    frameCount: frames.length,
+    current, frames
+  };
+  const text = zkTextSummary(current) +
+    `\n\nBlackbox: letzte ${(ZK_BLACKBOX_WINDOW_MS / 1000).toFixed(0)}s vor dem Export, ${frames.length} Frames (alle ${ZK_BLACKBOX_STEP_MS}ms)\n\n` +
+    JSON.stringify(payload, null, 2);
+  const blob = new Blob([text], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `zellkrieg-blackbox-${stamp}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  console.log("[Zellkrieg] Blackbox-Protokoll heruntergeladen:", a.download);
+  return a.download;
+}
+
+// Export-Entscheidung für Knopf/Taste: läuft die Blackbox gerade (Balance-
+// Anzeige an, mind. ein Frame aufgezeichnet), gibt es die letzten 10s als
+// Zeitleiste – sonst wie bisher nur den aktuellen Schnappschuss.
+function zkExport() {
+  return (typeof debugMode !== "undefined" && debugMode && zkBlackbox.length)
+    ? zkDownloadBlackbox()
+    : zkDownload();
+}
+
 /* --- Verdrahtung (Browser-APIs; kein dateiübergreifender Aufruf beim Laden) --- */
 
 window.addEventListener("keydown", e => {
   if (e.key === "F9") {
     e.preventDefault();
-    e.shiftKey ? zkCopy() : zkDownload();
+    e.shiftKey ? zkCopy() : zkExport();
   }
 });
 
 // HUD-Knopf, falls vorhanden (index.html), sonst still ignorieren.
 (function () {
   const btn = document.getElementById("btnDebug");
-  if (btn) btn.addEventListener("click", zkDownload);
+  if (btn) btn.addEventListener("click", zkExport);
 })();
 
-console.log("[Zellkrieg] Debug bereit: F9 = Datei · Shift+F9 = kopieren · Konsole: zkDebug(), zkDownload(), zkRecord(6)");
+console.log("[Zellkrieg] Debug bereit: F9/🐞 = Datei (bei aktiver Balance-Anzeige: letzte 10s als Blackbox) · Shift+F9 = aktuellen Zustand kopieren · Konsole: zkDebug(), zkDownload(), zkRecord(6)");

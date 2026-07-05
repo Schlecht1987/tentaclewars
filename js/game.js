@@ -65,6 +65,8 @@ let slashes = [];         // kurze Schnitt-Markierungen (auch für KI-Schnitte)
 let aiStates = [];   // pro KI-Fraktion: { owner, profile, timer }
 let gameOver = false;
 let inMenu = true;   // Level-Auswahl sichtbar, Spiel pausiert
+let paused = false;  // manuelle Pause (⏸-Knopf/Leertaste) – hält NUR die Simulation an,
+                      // Eingaben werden währenddessen ignoriert (siehe pointerdown/frame())
 let lastTime = 0;
 let simAccumulator = 0; // Sekunden seit dem letzten abgeschlossenen Sim-Schritt (fixed-timestep, siehe frame())
 
@@ -72,6 +74,8 @@ let debugMode = false;  // Balance-Debug-Anzeige (Toggle über 📊-Knopf / F8)
 let fpsSmooth = 0;      // geglättete Render-Bildrate (rAF-Callbacks/Sek.) – die
                         // Simulation läuft seit der Fixed-Timestep-Entkopplung
                         // separat mit fester Rate (CONFIG.simTickRate, siehe frame())
+let updateMsSmooth = 0; // geglättete Dauer der Sim-Schritte pro Frame (ms) – für Balance-Anzeige/Blackbox
+let drawMsSmooth = 0;   // geglättete Dauer von draw() pro Frame (ms) – für Balance-Anzeige/Blackbox
 
 let view = { scale: 1, offX: 0, offY: 0, portrait: false };
 
@@ -89,6 +93,8 @@ function resetGame() {
   selected = null; dragSource = null; hovered = null;
   cutting = false; cutLast = null; cutStart = null; cutArmed = false;
   gameOver = false;
+  paused = false;
+  zkBlackboxReset();
 
   // KI-Zustände: eine pro Fraktion, die im Level Zellen besitzt.
   // Zufällige Start-Phase, damit mehrere KIs nicht im Gleichtakt handeln.
@@ -103,6 +109,14 @@ function resetGame() {
   }
 
   document.getElementById("overlay").classList.remove("show");
+  updatePauseButton();
+}
+
+// Manuelle Pause: hält nur die Simulation an (siehe frame()), Eingaben werden
+// währenddessen ignoriert (siehe pointerdown). Kein Effekt im Menü/nach Spielende.
+function togglePause() {
+  if (gameOver || inMenu) return;
+  paused = !paused;
 }
 
 // Deterministische Pseudozufallszahlen für den Sternenhintergrund
@@ -866,7 +880,7 @@ function pickCell(w) {
 }
 
 canvas.addEventListener("pointerdown", e => {
-  if (gameOver || inMenu) return;
+  if (gameOver || inMenu || paused) return;
   const w = toWorld(e);
   pointerWorld = w;
   const cell = pickCell(w);
@@ -913,10 +927,12 @@ canvas.addEventListener("pointermove", e => {
 
 canvas.addEventListener("pointerup", e => {
   if (dragSource) {
-    const cell = pickCell(toWorld(e));
-    if (cell && cell !== dragSource) {
-      tryCommand(dragSource, cell);
-      selected = null;
+    if (!paused) {
+      const cell = pickCell(toWorld(e));
+      if (cell && cell !== dragSource) {
+        tryCommand(dragSource, cell);
+        selected = null;
+      }
     }
     dragSource = null;
   }
@@ -930,6 +946,13 @@ canvas.addEventListener("contextmenu", e => { e.preventDefault(); selected = nul
 window.addEventListener("keydown", e => {
   if (e.key === "Escape") { selected = null; dragSource = null; }
   if (e.key === "F8") { e.preventDefault(); toggleDebugMode(); }
+  if (e.key === " " && !inMenu && !gameOver) {
+    const tag = document.activeElement && document.activeElement.tagName;
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || tag === "BUTTON") return;
+    e.preventDefault();
+    togglePause();
+    updatePauseButton();
+  }
 });
 
 /* ======================================================================
@@ -1335,6 +1358,20 @@ function draw(now, alpha) {
       });
     }
   }
+
+  // Pause-Overlay: in Bildschirmkoordinaten (nicht Welt-Transform), damit
+  // Text/Abdunklung unabhängig von Zoom/Hochformat-Drehung immer gleich sitzt.
+  if (paused) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const vw = canvas.width / dpr, vh = canvas.height / dpr;
+    ctx.fillStyle = "rgba(10,17,28,.45)";
+    ctx.fillRect(0, 0, vw, vh);
+    ctx.font = '700 28px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#eaf2fa";
+    ctx.fillText("PAUSIERT", vw / 2, vh / 2);
+  }
 }
 
 /* ======================================================================
@@ -1354,23 +1391,44 @@ function frame(now) {
   // ohnehin, wie viele Sim-Schritte ein einzelner Frame nachholen darf.
   const frameDt = Math.min(0.25, (now - lastTime) / 1000 || 0);
   lastTime = now;
-  simAccumulator += frameDt;
 
-  let steps = 0;
-  while (simAccumulator >= simDt && steps < SIM_MAX_STEPS_PER_FRAME) {
-    snapshotPrevState();
-    update(simDt);
-    simAccumulator -= simDt;
-    steps++;
+  // Manuelle Pause: Simulation komplett anhalten, aber weiter zeichnen
+  // (eingefrorener letzter Zustand) statt Sim-Schritte nachzuholen.
+  let alpha = 1;
+  if (!paused) {
+    simAccumulator += frameDt;
+    let steps = 0;
+    const tUpd0 = performance.now();
+    while (simAccumulator >= simDt && steps < SIM_MAX_STEPS_PER_FRAME) {
+      snapshotPrevState();
+      update(simDt);
+      simAccumulator -= simDt;
+      steps++;
+    }
+    // Sind wir wegen des Schritt-Limits zurückgefallen, nicht ewig nachlaufen
+    // lassen (sonst häufen sich nach einer Slow-Phase immer mehr Sim-Schritte an).
+    if (steps === SIM_MAX_STEPS_PER_FRAME) simAccumulator = 0;
+    if (steps > 0) {
+      const updMs = performance.now() - tUpd0;
+      updateMsSmooth += (updMs - updateMsSmooth) * Math.min(1, frameDt * 4);
+    }
+    alpha = Math.max(0, Math.min(1, simAccumulator / simDt));
   }
-  // Sind wir wegen des Schritt-Limits zurückgefallen, nicht ewig nachlaufen
-  // lassen (sonst häufen sich nach einer Slow-Phase immer mehr Sim-Schritte an).
-  if (steps === SIM_MAX_STEPS_PER_FRAME) simAccumulator = 0;
 
-  const alpha = Math.max(0, Math.min(1, simAccumulator / simDt));
+  const tDraw0 = performance.now();
   draw(now, alpha);
+  const drawMs = performance.now() - tDraw0;
+  drawMsSmooth += (drawMs - drawMsSmooth) * Math.min(1, frameDt * 4);
+
   updateHud();
   if (frameDt > 0) fpsSmooth += (1 / frameDt - fpsSmooth) * Math.min(1, frameDt * 4);
-  if (debugMode) updateDebugPanel();
+  if (debugMode) {
+    updateDebugPanel();
+    // Während der Pause NICHT weiter aufzeichnen: sonst würden die (jetzt
+    // eingefrorenen, aber identischen) Frames laufend nachrücken und genau
+    // den Moment kurz vor dem Pausieren – meist der interessante Moment,
+    // wenn man wegen eines Bugs pausiert hat – aus dem 10s-Fenster verdrängen.
+    if (!paused) zkBlackboxTick();
+  }
   requestAnimationFrame(frame);
 }

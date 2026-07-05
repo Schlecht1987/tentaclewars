@@ -216,10 +216,27 @@ function toggleDebugMode() {
   if (debugMode) updateDebugPanel();
 }
 
+/* ---------------------------------------------------------------------
+   Pause (Knopf ⏸ im HUD / Leertaste, siehe togglePause() in game.js)
+   --------------------------------------------------------------------- */
+
+function updatePauseButton() {
+  const btn = document.getElementById("btnPause");
+  btn.textContent = paused ? "▶" : "⏸";
+  btn.classList.toggle("active", paused);
+}
+
+function onPauseClick() {
+  togglePause();
+  updatePauseButton();
+}
+
 function updateDebugPanel() {
   const panel = document.getElementById("debugPanel");
   const owners = ["player", ...AI_FACTIONS.filter(f => cells.some(c => c.owner === f))];
-  const lines = [`${fpsSmooth.toFixed(0)} Ticks/s  ·  ${cells.length} Zellen  ·  ${tentacles.length} Tentakel`];
+  const lines = [
+    `${fpsSmooth.toFixed(0)} FPS  ·  Sim ${updateMsSmooth.toFixed(1)}ms  ·  Zeichnen ${drawMsSmooth.toFixed(1)}ms  ·  ${cells.length} Zellen  ·  ${tentacles.length} Tentakel`
+  ];
   for (const owner of owners) {
     const oc = cells.filter(c => c.owner === owner);
     if (!oc.length) continue;
@@ -321,6 +338,7 @@ function initUi() {
   document.getElementById("overlayRestart").addEventListener("click", resetGame);
   document.getElementById("btnLevels").addEventListener("click", showLevelMenu);
   document.getElementById("btnBalance").addEventListener("click", toggleDebugMode);
+  document.getElementById("btnPause").addEventListener("click", onPauseClick);
   document.getElementById("overlayMenu").addEventListener("click", showLevelMenu);
   document.getElementById("overlayNext").addEventListener("click", onOverlayNext);
 
