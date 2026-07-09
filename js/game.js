@@ -514,7 +514,11 @@ function cutTentacle(t, L) {
   // durchtrennte Vorderstück soll dann NICHT weiter zum Gegner fliegen und
   // dort Schaden/Heilung abliefern, sondern die ganze Tentakel fährt einfach
   // ein, so als hätte man sie regulär zurückgezogen.
-  if (t.mode === "grow") {
+  // AUSNAHME Duell (_clash): Dort ist die Spitze an der Front in der
+  // Korridor-Mitte gebunden und kämpft bereits – der klassische Abtrenn-Trick
+  // (Vorderstück auf den Gegner schießen) muss gerade hier funktionieren,
+  // sonst wäre eine Zelle, die zurückangreift, gegen den Trick immun.
+  if (t.mode === "grow" && !t._clash) {
     t.mode = "retract";
     return true;
   }
@@ -713,7 +717,18 @@ function update(dt) {
       if (t.head >= target - 0.001) t.mode = "flow"; // angedockt bzw. Front erreicht!
 
     } else if (t.mode === "flow" && t._clash) {
-      // Angedockt, aber im Duell: alle Energie geht in den Kampf (kein Transfer)
+      // Angedockt, aber im Duell: alle Energie geht in den Kampf (kein Transfer).
+      // War die Tentakel schon voll bis zur Gegenzelle ausgefahren, bevor die
+      // Gegenrichtung aktiv wurde, zieht sich ihre Spitze jetzt auf die
+      // Duell-Front in der Korridor-Mitte zurück (die Masse fließt zur Quelle
+      // zurück) – sonst "verbände" sie optisch weiter beide Zellen, obwohl
+      // die Front in der Mitte steht.
+      const front = Math.min(t.len, t.len / 2);
+      if (t.head > front + 0.001) {
+        const d = Math.min(CONFIG.retractSpeed * dt, t.head - front);
+        t.head -= d;
+        creditUnits(t.src, d / CONFIG.lengthPerUnit);
+      }
 
     } else if (t.mode === "flow") {
       // Kontinuierliche Übertragung, sowohl bei HEILUNG als auch bei einem
