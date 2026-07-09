@@ -12,7 +12,8 @@
 const CAMPAIGN_SIZE = 50;
 // Bump bei jeder Änderung an generateMap/campaignDifficulty (siehe Kommentar
 // oben). v2: Zell-Ausbau (tierMax) eingeführt – zusätzliche rng-Ziehungen.
-const CAMPAIGN_SEED = 0xC0FFE2;
+// v3: flächenskalierter Mindestabstand (spread) – Zellen nutzen die ganze Karte.
+const CAMPAIGN_SEED = 0xC0FFE3;
 
 function lerp(a, b, t) { return a + (b - a) * t; }
 

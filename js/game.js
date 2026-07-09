@@ -687,6 +687,12 @@ function update(dt) {
       t.pendingPush = 0; t.pendingTicks = 0;
     }
 
+    // Duell vorbei (Gegenseite eingezogen/erobert), aber die Tentakel war an
+    // der Korridor-Mitte "angedockt" (mode flow bei halber Länge): wieder in
+    // den Wachstums-Modus wechseln und bis zum echten Ziel weiterwachsen –
+    // sonst bliebe sie für immer mitten im Feld stehen.
+    if (t.mode === "flow" && !t._clash && t.head < t.len - 0.001) t.mode = "grow";
+
     if (t.mode === "grow") {
       // Wachstum kostet Punkte; Überschuss-Puffer wird zuerst angezapft.
       // Im Duell (_clash) ist das Wachstumsziel nur die KORRIDOR-MITTE statt

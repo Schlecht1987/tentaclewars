@@ -78,7 +78,11 @@ heim), das vordere Stück fließt weiter zum Ziel und wirkt dort.
 
 Die KI-Schwierigkeiten unterscheiden sich in Reaktionstempo, Mindest-Vorrat
 vor einem Angriff, Befehlen pro Zug und Zielgenauigkeit (leichte KI „verzielt"
-sich messbar).
+sich messbar). Die KI überdenkt ihre Tentakel dabei laufend: Sie zieht fertige
+Verstärkungen und aussichtslose Angriffe wieder ein und nutzt den
+Abtrenn-Trick – reicht die in einer Tentakel gebundene Masse aus, um das Ziel
+zu übernehmen, schneidet sie sie nahe der Quelle ab und lässt das freie Stück
+die Eroberung erledigen, während der Slot sofort wieder frei wird.
 
 ## Die fünf Zelltypen
 

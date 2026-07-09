@@ -17,6 +17,46 @@ function aiThink(owner, profile) {
   let budget = profile.commandsPerTick;
   const noise = () => (Math.random() * 2 - 1) * profile.targetNoise;
 
+  // 0) Bestehende Tentakel überdenken – die KI klebt sonst für immer an
+  //    ihrer ersten Entscheidung, weil belegte Slots nie wieder frei werden:
+  //    a) Abtrenn-Trick: Reicht die in der Tentakel gebundene Masse aus, um
+  //       das Ziel zu übernehmen, wird nahe der Quelle geschnitten – das
+  //       vordere Stück fliegt weiter und erledigt den Rest, der Slot ist
+  //       sofort wieder frei für eine neue Entscheidung.
+  //    b) Fertige Verstärkung (Ziel + Puffer randvoll) einziehen.
+  //    c) Aussichtslose Kämpfe abbrechen: ein Duell, das die eigene Quelle
+  //       ausblutet, oder ein einseitiger Solo-Angriff, der langsamer
+  //       schadet, als das Ziel produziert.
+  for (const t of [...tentacles]) {
+    if (budget <= 0) return;
+    if (t.dead || t.owner !== owner || t.mode !== "flow" || t.src.owner !== owner) continue;
+    const src = t.src, dst = t.dst;
+
+    if (dst.owner === owner) {
+      if (dst.units >= cellMax(dst) - 1 && dst.boost >= CONFIG.overflowBuffer - 1) {
+        t.mode = "retract"; budget--;
+      }
+      continue;
+    }
+
+    const per = effDamagePerUnit(src, dst);
+    // Masse, die beim Schnitt nahe der Quelle als freies Stück beim Ziel
+    // ankäme (Schnittabstand + Sicherheitsmarge bereits abgezogen)
+    const massPts = Math.max(0, t.head - t.tail - 14) / CONFIG.lengthPerUnit;
+    const finishes = dst.owner === "neutral"
+      ? (dst.chargeOwner === owner && dst.units + massPts * per >= CONFIG.captureCharge + 1)
+      : (massPts * per >= dst.units + 2);
+    if (per > 0 && finishes && cutTentacle(t, t.tail + 7)) { budget--; continue; }
+
+    const soloAttack = !tentacles.some(o => o !== t && !o.dead && o.owner === owner &&
+      o.dst === dst && (o.mode === "grow" || o.mode === "flow"));
+    const losingDuel = t._clash && src.units < profile.minUnits && dst.units > src.units;
+    const hopeless = !t._clash && soloAttack && dst.owner !== "neutral" &&
+      cellProd(src) * per < cellProd(dst) * 0.7;
+    if (losingDuel || hopeless) { t.mode = "retract"; budget--; }
+  }
+  if (budget <= 0) return;
+
   const sources = cells
     .filter(c => c.owner === owner && Math.floor(c.units) >= profile.minUnits)
     .sort((a, b) => b.units - a.units);

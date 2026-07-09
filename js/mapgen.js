@@ -43,6 +43,13 @@ function generateMap(params, rng) {
   const placed = []; // { x, y, type, owner, units }
   const cx = p.width / 2, cy = p.height / 2;
 
+  // Effektiver Mindestabstand: skaliert mit der verfügbaren Fläche pro Zelle
+  // (mindestens p.minDist). Sonst drängen sich bei wenigen Zellen auf großen
+  // Karten alle eng um Anker/Mitte, während der Rest des Felds leer bleibt.
+  const totalCells = factions.length * p.cellsPerFaction + p.neutralCells;
+  const spread = Math.max(p.minDist,
+    0.66 * Math.sqrt(((p.width - p.margin * 2) * (p.height - p.margin * 2)) / Math.max(1, totalCells)));
+
   const weights = {};
   for (const t of p.allowedTypes) {
     if (MAPGEN_TYPE_WEIGHTS[t]) weights[t] = MAPGEN_TYPE_WEIGHTS[t];
@@ -100,9 +107,9 @@ function generateMap(params, rng) {
         if (!pts.every(inBounds)) continue;
         let ok = true;
         for (let i = 0; i < pts.length && ok; i++) {
-          if (!farEnough(pts[i], p.minDist * relax)) ok = false;
+          if (!farEnough(pts[i], spread * relax)) ok = false;
           for (let j = i + 1; j < pts.length && ok; j++) {
-            if (Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) < p.minDist * relax) ok = false;
+            if (Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) < spread * relax) ok = false;
           }
         }
         if (!ok) continue;
@@ -119,9 +126,13 @@ function generateMap(params, rng) {
 
     const neutralOwners = factions.map(() => "neutral");
 
-    // 1) Heimatzellen (immer "normal", Start-Punkte je Fraktion)
+    // 1) Heimatzellen (immer "normal", Start-Punkte je Fraktion).
+    // Bei k=2 darf der Anker deutlich in der Höhe variieren (gespiegelt
+    // bleibt es fair) – sonst spielt sich alles auf halber Höhe ab und
+    // ober-/unterhalb bleibt die Karte leer.
+    const anchorJitterY = k === 2 ? p.height * 0.42 : 40;
     placeSymmetric(
-      () => ({ x: anchor.x + (rng() - 0.5) * 40, y: anchor.y + (rng() - 0.5) * 40 }),
+      () => ({ x: anchor.x + (rng() - 0.5) * 40, y: anchor.y + (rng() - 0.5) * anchorJitterY }),
       "normal",
       factions,
       i => (factions[i] === "player" ? p.startUnits.player : p.startUnits.ai)
@@ -134,7 +145,7 @@ function generateMap(params, rng) {
       placeSymmetric(
         () => {
           const a = rng() * Math.PI * 2;
-          const r = p.minDist * (1 + rng() * 0.8);
+          const r = spread * (1 + rng() * 0.9);
           return { x: anchor.x + Math.cos(a) * r, y: anchor.y + Math.sin(a) * r };
         },
         type,
@@ -152,8 +163,8 @@ function generateMap(params, rng) {
         () => {
           const f = 0.35 + rng() * 0.45; // Anteil des Wegs Richtung Mitte
           return {
-            x: anchor.x + (cx - anchor.x) * f + (rng() - 0.5) * 160,
-            y: anchor.y + (cy - anchor.y) * f + (rng() - 0.5) * 160
+            x: anchor.x + (cx - anchor.x) * f + (rng() - 0.5) * spread * 2,
+            y: anchor.y + (cy - anchor.y) * f + (rng() - 0.5) * spread * 2
           };
         },
         type,
@@ -169,10 +180,10 @@ function generateMap(params, rng) {
       for (let attempt = 0; attempt < 200; attempt++) {
         const relax = 1 - 0.4 * (attempt / 200);
         const pt = {
-          x: cx + (rng() - 0.5) * p.width * 0.3,
-          y: cy + (rng() - 0.5) * p.height * 0.3
+          x: cx + (rng() - 0.5) * p.width * 0.55,
+          y: cy + (rng() - 0.5) * p.height * 0.55
         };
-        if (inBounds(pt) && farEnough(pt, p.minDist * relax)) {
+        if (inBounds(pt) && farEnough(pt, spread * relax)) {
           pushCell(pt, type, "neutral", neutralUnitsFor(type), rollTierMax(rng, type));
           break;
         }
@@ -192,7 +203,7 @@ function generateMap(params, rng) {
           x: p.margin + rng() * (p.width - p.margin * 2),
           y: p.margin + rng() * (p.height - p.margin * 2)
         };
-        if (!farEnough(pt, p.minDist)) continue;
+        if (!farEnough(pt, spread)) continue;
         if (homes.every(h => Math.hypot(h.x - pt.x, h.y - pt.y) >= need)) {
           pushCell(pt, "normal", f, f === "player" ? p.startUnits.player : p.startUnits.ai,
             rollTierMax(rng, "normal"));
@@ -208,9 +219,9 @@ function generateMap(params, rng) {
         for (let attempt = 0; attempt < 200; attempt++) {
           const relax = 1 - 0.4 * (attempt / 200);
           const a = rng() * Math.PI * 2;
-          const r = p.minDist * (0.9 + rng() * 0.9);
+          const r = spread * (0.9 + rng() * 0.9);
           const pt = { x: h.x + Math.cos(a) * r, y: h.y + Math.sin(a) * r };
-          if (!inBounds(pt) || !farEnough(pt, p.minDist * relax)) continue;
+          if (!inBounds(pt) || !farEnough(pt, spread * relax)) continue;
           // Cluster-Zellen gehören klar zur eigenen Heimat: näher an ihr
           // als an jeder fremden Heimatzelle
           const dOwn = Math.hypot(pt.x - h.x, pt.y - h.y);
@@ -229,7 +240,7 @@ function generateMap(params, rng) {
           x: p.margin + rng() * (p.width - p.margin * 2),
           y: p.margin + rng() * (p.height - p.margin * 2)
         };
-        if (inBounds(pt) && farEnough(pt, p.minDist * relax)) {
+        if (inBounds(pt) && farEnough(pt, spread * relax)) {
           pushCell(pt, type, "neutral", neutralUnitsFor(type), rollTierMax(rng, type));
           break;
         }
