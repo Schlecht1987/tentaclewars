@@ -71,6 +71,59 @@ canvas {
 
 .info-desc { font-size: .78rem; color: #99a; }
 
+/* Ein-/ausklappbare Panels */
+.panel-toggle { cursor: pointer; user-select: none; }
+.panel-toggle .chev { color: #667; font-size: .8rem; }
+#selection.collapsed #sel-body,
+#stats-panel.collapsed #stats-content { display: none; }
+
+/* Upgrade-Vorschau in der Infobox */
+.upgrade-preview {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #1f2836;
+  border-left: 3px solid #2e6b46;
+  border-radius: 4px;
+  font-size: .78rem;
+  color: #aab;
+}
+.upgrade-preview .up { color: #6ad06a; font-weight: 600; }
+
+/* Dev-Panel: Balance-Regler */
+#btn-dev { width: 100%; font-size: .82rem; background: #2f2a3a; }
+#btn-dev:hover { background: #3d3650; }
+#dev-panel {
+  margin-top: 8px;
+  background: #262b38;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dev-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: .78rem;
+  color: #ccd;
+  cursor: help;
+}
+.dev-row input {
+  width: 76px;
+  background: #1a1f2a;
+  border: 1px solid #3a4155;
+  border-radius: 4px;
+  color: #ffd75e;
+  font: inherit;
+  padding: 3px 6px;
+  text-align: right;
+}
+.dev-actions { display: flex; gap: 8px; margin-top: 4px; }
+.dev-actions button { flex: 1; font-size: .78rem; padding: 6px; }
+.dev-hint { font-size: .72rem; color: #778; line-height: 1.4; }
+
 #tools { display: flex; gap: 8px; }
 .tool-btn { flex: 1; font-size: .82rem; border: 2px solid transparent; }
 .tool-btn.active { border-color: #ffd75e; background: #2f3547; }

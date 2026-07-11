@@ -37,10 +37,12 @@
       </div>
 
       <div id="selection" class="hidden">
-        <h2>Info</h2>
-        <div id="sel-info"></div>
-        <button id="btn-upgrade"></button>
-        <button id="btn-sell"></button>
+        <h2 id="sel-toggle" class="panel-toggle">Info <span class="chev">▾</span></h2>
+        <div id="sel-body">
+          <div id="sel-info"></div>
+          <button id="btn-upgrade"></button>
+          <button id="btn-sell"></button>
+        </div>
       </div>
 
       <div id="wave-panel">
@@ -49,8 +51,8 @@
         <div id="wave-info"></div>
       </div>
 
-      <div id="stats-panel">
-        <h2>Statistiken</h2>
+      <div id="stats-panel" class="collapsed">
+        <h2 id="stats-toggle" class="panel-toggle">📊 Statistiken <span class="chev">▸</span></h2>
         <div id="stats-content"></div>
       </div>
 
@@ -59,6 +61,11 @@
         <button class="speed-btn active" data-speed="1">1×</button>
         <button class="speed-btn" data-speed="2">2×</button>
         <button class="speed-btn" data-speed="3">3×</button>
+      </div>
+
+      <div id="dev-wrap">
+        <button id="btn-dev" title="Balance-Stellschrauben live im Spiel anpassen (Entwickler-Werkzeug)">🛠 Balance-Regler</button>
+        <div id="dev-panel" class="hidden"></div>
       </div>
     </aside>
   </main>

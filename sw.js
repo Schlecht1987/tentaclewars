@@ -8,7 +8,7 @@
    "Update on reload" / "Bypass for network" aktivieren.
    ====================================================================== */
 
-const CACHE = "spielhalle-v29";
+const CACHE = "spielhalle-v30";
 
 const ASSETS = [
   "./",

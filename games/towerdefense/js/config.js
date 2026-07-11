@@ -3,7 +3,33 @@ const CONFIG = {
   tileSize: 40,
   cols: 24,
   rows: 16,
-  waveBonusBase: 20, // Gold-Bonus pro geschaffter Welle (+ Welle * 3)
+};
+
+// ---- Balance-Stellschrauben (live editierbar über das 🛠-Dev-Panel) ----
+const TUNING = {
+  hpGrowth: 1.17,     // Faktor, mit dem Gegner-HP pro Welle wachsen (exponentiell)
+  hpMulGlobal: 1,     // globaler Multiplikator auf alle Gegner-HP
+  goldGrowth: 0.07,   // Gold-Zuwachs pro Welle (linear, +7 %/Welle)
+  goldMulGlobal: 1,   // globaler Multiplikator auf Gegner-Gold
+  speedGrowth: 0.02,  // Tempo-Zuwachs der Gegner pro Welle
+  speedMax: 1.5,      // Obergrenze des Tempo-Zuwachses
+  waveBonusBase: 20,  // Gold-Bonus pro geschaffter Welle (+ Welle * 3)
+  towerDmgMul: 1,     // globaler Multiplikator auf allen Turmschaden
+  startGoldBonus: 0,  // zusätzliches Startgold (gilt ab Levelstart/Neustart)
+};
+const TUNING_DEFAULTS = { ...TUNING };
+
+// Hilfetexte fürs Dev-Panel (title-Tooltip beim Hovern)
+const TUNING_INFO = {
+  hpGrowth: "Exponentielles HP-Wachstum der Gegner pro Welle. 1.17 = +17 % pro Welle. Wichtigster Schwierigkeits-Regler fürs Lategame.",
+  hpMulGlobal: "Globaler Faktor auf alle Gegner-HP (zusätzlich zum Level-hpMul). 1 = normal, 1.2 = alle Gegner 20 % zäher.",
+  goldGrowth: "Wie stark das Gold pro Gegner mit jeder Welle steigt (linear). 0.07 = +7 % pro Welle. Höher = großzügigere Wirtschaft im Lategame.",
+  goldMulGlobal: "Globaler Faktor auf das Gold aller Gegner. 1 = normal, 0.8 = 20 % weniger Einkommen.",
+  speedGrowth: "Wie viel schneller die Gegner pro Welle werden. 0.02 = +2 % pro Welle (bis zur Obergrenze).",
+  speedMax: "Obergrenze des Tempo-Zuwachses. 1.5 = Gegner werden maximal 50 % schneller als ihr Grundtempo.",
+  waveBonusBase: "Gold-Grundbonus nach jeder geschafften Welle (dazu kommt Welle × 3).",
+  towerDmgMul: "Globaler Faktor auf den Schaden ALLER Türme. 1 = normal, 0.9 = alle Türme 10 % schwächer. Schneller Test, ob die Türme insgesamt zu stark sind.",
+  startGoldBonus: "Zusätzliches Startgold, wird beim Levelstart/Neustart auf das Level-Startgold addiert (z. B. 100).",
 };
 
 // ---- Kampagne: 10 Level mit eigener Karte + Schwierigkeit ----
@@ -157,10 +183,10 @@ const ENEMY_TYPES = {
 function buildWave(n, hpMul = 1) {
   const groups = [];
   // HP wächst exponentiell – Gold nur linear. Dadurch wird es spürbar härter.
-  const hpScale = Math.pow(1.16, n - 1) * hpMul;
-  const goldScale = 1 + (n - 1) * 0.08;
-  // Gegner werden mit jeder Welle etwas schneller (bis +50 %)
-  const speedScale = Math.min(1.5, 1 + (n - 1) * 0.02);
+  const hpScale = Math.pow(TUNING.hpGrowth, n - 1) * hpMul * TUNING.hpMulGlobal;
+  const goldScale = (1 + (n - 1) * TUNING.goldGrowth) * TUNING.goldMulGlobal;
+  // Gegner werden mit jeder Welle etwas schneller (bis zur Obergrenze)
+  const speedScale = Math.min(TUNING.speedMax, 1 + (n - 1) * TUNING.speedGrowth);
 
   groups.push({ type: "runner", count: 6 + n * 2, interval: 0.75 });
   if (n >= 3) groups.push({ type: "soldier", count: 3 + n, interval: 1.0 });

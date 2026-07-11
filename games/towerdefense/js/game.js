@@ -59,7 +59,7 @@ state.hardcore = false;
 
 function resetState() {
   const lv = state.levelDef;
-  state.gold = lv.startGold;
+  state.gold = lv.startGold + Math.round(TUNING.startGoldBonus);
   state.lives = state.hardcore ? 1 : lv.startLives;
   state.totalWaves = lv.waves;
   state.wave = 0;
@@ -107,7 +107,22 @@ const ui = {
   levelGridHc: document.getElementById("level-grid-hc"),
   hcSub: document.getElementById("hc-sub"),
   levelName: document.getElementById("level-name"),
+  selToggle: document.getElementById("sel-toggle"),
+  statsPanel: document.getElementById("stats-panel"),
+  statsToggle: document.getElementById("stats-toggle"),
+  btnDev: document.getElementById("btn-dev"),
+  devPanel: document.getElementById("dev-panel"),
 };
+
+// Ein-/Ausklappen von Info- und Statistik-Panel (Chevron zeigt den Zustand)
+function wireCollapse(toggleEl, panelEl) {
+  toggleEl.addEventListener("click", () => {
+    panelEl.classList.toggle("collapsed");
+    toggleEl.querySelector(".chev").textContent = panelEl.classList.contains("collapsed") ? "▸" : "▾";
+  });
+}
+wireCollapse(document.getElementById("sel-toggle"), document.getElementById("selection"));
+wireCollapse(document.getElementById("stats-toggle"), document.getElementById("stats-panel"));
 
 // Shop aufbauen: kompakte Symbol-Knöpfe, Details erscheinen in der Infobox
 for (const [key, t] of Object.entries(TOWER_TYPES)) {
@@ -139,6 +154,27 @@ function towerInfoHtml(t) {
   return `<b>${t.icon} ${t.name}</b> · ${t.cost} 💰<br>` +
     `<span class="info-desc">${t.desc}</span><br>${statLine}<br>` +
     `<span class="info-desc">Zum Bauen freies Feld anklicken.</span>`;
+}
+
+// Vorschau: was ändert sich beim nächsten Upgrade des ausgewählten Turms
+function upgradePreviewHtml(tw) {
+  const s = tw.stats;
+  const n = tw.def.levels[tw.level + 1];
+  const row = (label, a, b, unit = "") =>
+    String(a) === String(b) ? "" : `${label}: ${a}${unit} → <span class="up">${b}${unit}</span><br>`;
+  const tgt = v => v === undefined || v <= 1 ? 1 : v >= 999 ? "alle in Reichweite" : v;
+  let h = "";
+  if (n.damage !== undefined) h += row("Schaden", s.damage, n.damage);
+  if (n.buff !== undefined) h += row("Schadens-Buff", `+${Math.round(s.buff * 100)}`, `+${Math.round(n.buff * 100)}`, " %");
+  if (n.rateBuff !== undefined) h += row("Tempo-Buff", `+${Math.round(s.rateBuff * 100)}`, `+${Math.round(n.rateBuff * 100)}`, " %");
+  h += row("Reichweite", s.range, n.range);
+  if (n.fireRate !== undefined) h += row("Feuerrate", (1 / s.fireRate).toFixed(1), (1 / n.fireRate).toFixed(1), "/s");
+  if (n.targets !== undefined) h += row("Ziele", tgt(s.targets), tgt(n.targets));
+  if (n.splash !== undefined) h += row("Fläche", s.splash || "–", n.splash);
+  if (n.slow !== undefined) h += row("Slow", s.slow ? Math.round(s.slow * 100) + " %" : "–", Math.round(n.slow * 100) + " %");
+  if (n.stun !== undefined) h += row("Betäubung", s.stun ? s.stun + " s" : "–", n.stun + " s");
+  if (n.critEvery !== undefined) h += row("Krit", s.critEvery ? `jeder ${s.critEvery}. ×${s.critMult}` : "–", `jeder ${n.critEvery}. ×${n.critMult}`);
+  return h ? `<div class="upgrade-preview"><b>Nach Upgrade (Lv. ${tw.level + 2}):</b><br>${h}</div>` : "";
 }
 
 function updateUI() {
@@ -178,7 +214,8 @@ function updateUI() {
       (s.splash ? `<br>Fläche: ${s.splash}` : "") +
       (s.slow ? `<br>Slow: ${Math.round(s.slow * 100)} %` : "") +
       (s.stun ? `<br>Betäubung: ${s.stun} s` : "") +
-      (s.critEvery ? `<br>Krit: jeder ${s.critEvery}. Schuss ×${s.critMult}` : "");
+      (s.critEvery ? `<br>Krit: jeder ${s.critEvery}. Schuss ×${s.critMult}` : "") +
+      (tw.maxLevel ? "" : upgradePreviewHtml(tw));
     if (tw.maxLevel) {
       ui.btnUpgrade.textContent = "Max. Level";
       ui.btnUpgrade.disabled = true;
@@ -441,6 +478,59 @@ ui.btnNext.addEventListener("click", () => {
 
 ui.btnMenu.addEventListener("click", showMenu);
 
+// ---- Dev-Panel: Balance-Stellschrauben live editieren ----
+function buildDevPanel() {
+  ui.devPanel.innerHTML = "";
+  for (const key of Object.keys(TUNING)) {
+    const row = document.createElement("label");
+    row.className = "dev-row";
+    row.title = TUNING_INFO[key] || "";
+    const name = document.createElement("span");
+    name.textContent = key;
+    const inp = document.createElement("input");
+    inp.type = "number";
+    inp.step = "any";
+    inp.value = TUNING[key];
+    inp.addEventListener("change", () => {
+      const v = parseFloat(inp.value);
+      if (!isNaN(v)) { TUNING[key] = v; updateUI(); }
+    });
+    row.append(name, inp);
+    ui.devPanel.appendChild(row);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "dev-actions";
+
+  const gold = document.createElement("button");
+  gold.textContent = "+500 💰";
+  gold.title = "Test-Gold: schenkt sofort 500 Gold (Cheat zum Ausprobieren von Aufbauten).";
+  gold.addEventListener("click", () => { state.gold += 500; updateUI(); });
+
+  const reset = document.createElement("button");
+  reset.textContent = "Zurücksetzen";
+  reset.title = "Alle Stellschrauben auf die Standardwerte zurücksetzen.";
+  reset.addEventListener("click", () => {
+    Object.assign(TUNING, TUNING_DEFAULTS);
+    buildDevPanel();
+    updateUI();
+  });
+
+  actions.append(gold, reset);
+  ui.devPanel.appendChild(actions);
+
+  const hint = document.createElement("div");
+  hint.className = "dev-hint";
+  hint.textContent = "Änderungen wirken sofort – Gegner-Werte ab der nächsten Welle, Turmschaden ab dem nächsten Schuss. Maus über einen Regler halten für die Erklärung.";
+  ui.devPanel.appendChild(hint);
+}
+
+ui.btnDev.addEventListener("click", () => {
+  const show = ui.devPanel.classList.contains("hidden");
+  if (show) buildDevPanel(); // bei jedem Öffnen frisch, damit aktuelle Werte drinstehen
+  ui.devPanel.classList.toggle("hidden", !show);
+});
+
 // ---- Update-Logik ----
 function update(dt) {
   if (state.gameOver) return;
@@ -488,7 +578,7 @@ function update(dt) {
 
   // Welle geschafft?
   if (state.spawner && state.spawner.finished && state.enemies.length === 0) {
-    state.gold += CONFIG.waveBonusBase + state.wave * 3;
+    state.gold += Math.round(TUNING.waveBonusBase) + state.wave * 3;
     state.spawner = null;
     changed = true;
 

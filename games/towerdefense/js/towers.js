@@ -118,7 +118,7 @@ class Projectile {
     this.y = tower.y;
     this.target = target;
     this.stats = tower.stats;
-    this.damage = Math.round(tower.stats.damage * tower.buffMult * dmgMult);
+    this.damage = Math.round(tower.stats.damage * tower.buffMult * dmgMult * TUNING.towerDmgMul);
     this.crit = dmgMult > 1;
     this.proj = tower.def.projectile;
     this.done = false;
