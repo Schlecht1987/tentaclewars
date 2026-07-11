@@ -16,6 +16,7 @@ const TUNING = {
   waveBonusBase: 20,  // Gold-Bonus pro geschaffter Welle (+ Welle * 3)
   towerDmgMul: 1,     // globaler Multiplikator auf allen Turmschaden
   startGoldBonus: 0,  // zusätzliches Startgold (gilt ab Levelstart/Neustart)
+  stunImmunity: 2,    // Sekunden Betäubungs-Immunität nach einer Betäubung
 };
 const TUNING_DEFAULTS = { ...TUNING };
 
@@ -30,6 +31,7 @@ const TUNING_INFO = {
   waveBonusBase: "Gold-Grundbonus nach jeder geschafften Welle (dazu kommt Welle × 3).",
   towerDmgMul: "Globaler Faktor auf den Schaden ALLER Türme. 1 = normal, 0.9 = alle Türme 10 % schwächer. Schneller Test, ob die Türme insgesamt zu stark sind.",
   startGoldBonus: "Zusätzliches Startgold, wird beim Levelstart/Neustart auf das Level-Startgold addiert (z. B. 100).",
+  stunImmunity: "Wie viele Sekunden ein Gegner nach einer Betäubung immun gegen weitere Betäubungen ist. Verhindert Dauer-Stun-Ketten durch mehrere Kanonen. 0 = keine Immunität.",
 };
 
 // ---- Kampagne: 10 Level mit eigener Karte + Schwierigkeit ----

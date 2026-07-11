@@ -28,6 +28,7 @@ class Enemy {
     this.slowFactor = 1;
     this.slowTimer = 0;
     this.stunTimer = 0;
+    this.stunImmuneTimer = 0; // nach einer Betäubung kurz immun (TUNING.stunImmunity)
   }
 
   applySlow(factor, duration) {
@@ -37,7 +38,9 @@ class Enemy {
   }
 
   applyStun(duration) {
-    this.stunTimer = Math.max(this.stunTimer, duration);
+    // bereits betäubt oder noch immun: wirkungslos (keine Dauer-Stun-Ketten)
+    if (this.stunTimer > 0 || this.stunImmuneTimer > 0) return;
+    this.stunTimer = duration;
   }
 
   takeDamage(dmg) {
@@ -52,8 +55,10 @@ class Enemy {
       this.slowTimer -= dt;
       if (this.slowTimer <= 0) this.slowFactor = 1;
     }
+    if (this.stunImmuneTimer > 0) this.stunImmuneTimer -= dt;
     if (this.stunTimer > 0) {
       this.stunTimer -= dt;
+      if (this.stunTimer <= 0) this.stunImmuneTimer = TUNING.stunImmunity;
       return; // betäubt: steht still
     }
 
