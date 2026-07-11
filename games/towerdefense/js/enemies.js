@@ -27,12 +27,17 @@ class Enemy {
     this.reachedEnd = false;
     this.slowFactor = 1;
     this.slowTimer = 0;
+    this.stunTimer = 0;
   }
 
   applySlow(factor, duration) {
     // stärkster Slow gewinnt, Dauer wird aufgefrischt
     this.slowFactor = Math.min(this.slowFactor, 1 - factor);
     this.slowTimer = Math.max(this.slowTimer, duration);
+  }
+
+  applyStun(duration) {
+    this.stunTimer = Math.max(this.stunTimer, duration);
   }
 
   takeDamage(dmg) {
@@ -46,6 +51,10 @@ class Enemy {
     if (this.slowTimer > 0) {
       this.slowTimer -= dt;
       if (this.slowTimer <= 0) this.slowFactor = 1;
+    }
+    if (this.stunTimer > 0) {
+      this.stunTimer -= dt;
+      return; // betäubt: steht still
     }
 
     let remaining = this.speed * this.slowFactor * dt;
@@ -85,6 +94,15 @@ class Enemy {
     ctx.strokeStyle = "rgba(0,0,0,.4)";
     ctx.lineWidth = 2;
     ctx.stroke();
+
+    // Stun-Anzeige
+    if (this.stunTimer > 0) {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size + 5, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255,220,120,.9)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
 
     // Slow-Anzeige
     if (this.slowTimer > 0) {

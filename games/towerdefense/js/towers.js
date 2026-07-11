@@ -10,10 +10,12 @@ class Tower {
     this.level = 0;
     this.cooldown = 0;
     this.buffMult = 1; // wird pro Frame von Verstärker-Türmen gesetzt
+    this.rateMult = 1; // wird pro Frame von Taktgeber-Türmen gesetzt
+    this.shots = 0;    // für kritische Treffer (Scharfschütze)
     this.invested = TOWER_TYPES[typeKey].cost; // für Verkaufswert
   }
 
-  get isBooster() { return this.stats.buff !== undefined; }
+  get isBooster() { return this.stats.buff !== undefined || this.stats.rateBuff !== undefined; }
 
   get def() { return TOWER_TYPES[this.type]; }
   get stats() { return this.def.levels[this.level]; }
@@ -33,21 +35,26 @@ class Tower {
     this.cooldown -= dt;
     if (this.cooldown > 0) return;
 
-    // Ziel: vorderster Gegner in Reichweite
-    let target = null;
-    let best = -Infinity;
+    // Ziele: vorderste Gegner in Reichweite (targets = max. Anzahl, Standard 1)
+    const inRange = [];
     for (const e of enemies) {
       if (e.dead || e.reachedEnd) continue;
       const d = Math.hypot(e.x - this.x, e.y - this.y);
-      if (d <= this.stats.range) {
-        const p = e.progress();
-        if (p > best) { best = p; target = e; }
-      }
+      if (d <= this.stats.range) inRange.push(e);
     }
-    if (!target) return;
+    if (inRange.length === 0) return;
+    inRange.sort((a, b) => b.progress() - a.progress());
+    const targets = inRange.slice(0, this.stats.targets || 1);
 
-    projectiles.push(new Projectile(this, target));
-    this.cooldown = this.stats.fireRate;
+    // Kritische Treffer: jeder critEvery-te Schuss macht critMult-fachen Schaden
+    this.shots++;
+    const crit = this.stats.critEvery && this.shots % this.stats.critEvery === 0;
+    const dmgMult = crit ? this.stats.critMult : 1;
+
+    for (const target of targets) {
+      projectiles.push(new Projectile(this, target, dmgMult));
+    }
+    this.cooldown = this.stats.fireRate / this.rateMult;
   }
 
   draw(ctx, isSelected) {
@@ -79,18 +86,20 @@ class Tower {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Verstärker: dezente Aura anzeigen
+    // Verstärker/Taktgeber: dezente Aura anzeigen
     if (this.isBooster) {
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.stats.range, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(224,208,90,.25)";
+      ctx.strokeStyle = this.def.color;
+      ctx.globalAlpha = 0.25;
       ctx.lineWidth = 1;
       ctx.stroke();
-      ctx.fillStyle = "#3a3410";
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#20301a";
       ctx.font = "13px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("⚡", this.x, this.y);
+      ctx.fillText(this.def.icon, this.x, this.y);
     }
 
     // Level-Punkte
@@ -104,12 +113,13 @@ class Tower {
 }
 
 class Projectile {
-  constructor(tower, target) {
+  constructor(tower, target, dmgMult = 1) {
     this.x = tower.x;
     this.y = tower.y;
     this.target = target;
     this.stats = tower.stats;
-    this.damage = Math.round(tower.stats.damage * tower.buffMult);
+    this.damage = Math.round(tower.stats.damage * tower.buffMult * dmgMult);
+    this.crit = dmgMult > 1;
     this.proj = tower.def.projectile;
     this.done = false;
   }
@@ -135,26 +145,27 @@ class Projectile {
 
   hit(enemies, effects) {
     if (this.stats.splash) {
-      // Flächenschaden
+      // Flächenwirkung: Schaden + ggf. Slow (Frostbombe) / Stun an alle im Radius
       for (const e of enemies) {
         if (e.dead || e.reachedEnd) continue;
         if (Math.hypot(e.x - this.target.x, e.y - this.target.y) <= this.stats.splash) {
           e.takeDamage(this.damage);
+          if (this.stats.slow) e.applySlow(this.stats.slow, this.stats.slowDuration);
+          if (this.stats.stun) e.applyStun(this.stats.stun);
         }
       }
       effects.push(new Explosion(this.target.x, this.target.y, this.stats.splash));
     } else {
       this.target.takeDamage(this.damage);
-    }
-    if (this.stats.slow) {
-      this.target.applySlow(this.stats.slow, this.stats.slowDuration);
+      if (this.stats.slow) this.target.applySlow(this.stats.slow, this.stats.slowDuration);
+      if (this.stats.stun) this.target.applyStun(this.stats.stun);
     }
   }
 
   draw(ctx) {
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.proj.size, 0, Math.PI * 2);
-    ctx.fillStyle = this.proj.color;
+    ctx.arc(this.x, this.y, this.proj.size * (this.crit ? 1.6 : 1), 0, Math.PI * 2);
+    ctx.fillStyle = this.crit ? "#ffe066" : this.proj.color;
     ctx.fill();
   }
 }

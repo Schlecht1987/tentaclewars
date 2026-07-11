@@ -117,6 +117,8 @@ for (const [key, t] of Object.entries(TOWER_TYPES)) {
   const lv = t.levels[0];
   const statLine = lv.buff !== undefined
     ? `Buff: +${Math.round(lv.buff * 100)} % Schaden · Radius ${lv.range}`
+    : lv.rateBuff !== undefined
+    ? `Buff: +${Math.round(lv.rateBuff * 100)} % Tempo · Radius ${lv.range}`
     : `Schaden: ${lv.damage} · ${(1 / lv.fireRate).toFixed(1)} Schuss/s · ${(lv.damage / lv.fireRate).toFixed(0)} DPS`;
   btn.innerHTML =
     `<span class="cost">${t.cost} 💰</span><span class="name">${t.icon} ${t.name}</span>` +
@@ -156,12 +158,18 @@ function updateUI() {
       `<b>${tw.def.icon} ${tw.def.name}</b> (Level ${tw.level + 1})<br>` +
       (s.buff !== undefined
         ? `Buff: +${Math.round(s.buff * 100)} % Schaden<br>Radius: ${s.range}`
+        : s.rateBuff !== undefined
+        ? `Buff: +${Math.round(s.rateBuff * 100)} % Angriffstempo<br>Radius: ${s.range}`
         : `Schaden: ${s.damage}` +
           (tw.buffMult > 1 ? ` <span style="color:#e0d05a">(×${tw.buffMult.toFixed(2)} ⚡)</span>` : "") +
           `<br>Reichweite: ${s.range}<br>` +
-          `Feuerrate: ${(1 / s.fireRate).toFixed(1)}/s`) +
+          `Feuerrate: ${(1 / s.fireRate).toFixed(1)}/s` +
+          (tw.rateMult > 1 ? ` <span style="color:#5ad08a">(×${tw.rateMult.toFixed(2)} ⏩)</span>` : "")) +
+      (s.targets > 1 ? `<br>Ziele: ${s.targets >= 999 ? "alle in Reichweite" : "bis zu " + s.targets}` : "") +
       (s.splash ? `<br>Fläche: ${s.splash}` : "") +
-      (s.slow ? `<br>Slow: ${Math.round(s.slow * 100)} %` : "");
+      (s.slow ? `<br>Slow: ${Math.round(s.slow * 100)} %` : "") +
+      (s.stun ? `<br>Betäubung: ${s.stun} s` : "") +
+      (s.critEvery ? `<br>Krit: jeder ${s.critEvery}. Schuss ×${s.critMult}` : "");
     if (tw.maxLevel) {
       ui.btnUpgrade.textContent = "Max. Level";
       ui.btnUpgrade.disabled = true;
@@ -195,7 +203,7 @@ function updateStats() {
   for (const t of state.towers) {
     towerCounts[t.type] = (towerCounts[t.type] || 0) + 1;
     invested += t.invested;
-    if (!t.isBooster) dps += (t.stats.damage * t.buffMult) / t.stats.fireRate;
+    if (!t.isBooster) dps += (t.stats.damage * t.buffMult) / (t.stats.fireRate / t.rateMult);
   }
 
   let html = `<div class="sec">Türme (${state.towers.length})</div>`;
@@ -428,14 +436,15 @@ function update(dt) {
 
   for (const e of state.enemies) e.update(dt);
 
-  // Verstärker-Buffs berechnen (stärkster gewinnt, stapelt nicht)
-  for (const t of state.towers) t.buffMult = 1;
+  // Verstärker-/Taktgeber-Buffs berechnen (je Buff-Art gewinnt der stärkste, stapelt nicht)
+  for (const t of state.towers) { t.buffMult = 1; t.rateMult = 1; }
   for (const b of state.towers) {
     if (!b.isBooster) continue;
     for (const t of state.towers) {
       if (t.isBooster) continue;
       if (Math.hypot(t.x - b.x, t.y - b.y) <= b.stats.range) {
-        t.buffMult = Math.max(t.buffMult, 1 + b.stats.buff);
+        if (b.stats.buff) t.buffMult = Math.max(t.buffMult, 1 + b.stats.buff);
+        if (b.stats.rateBuff) t.rateMult = Math.max(t.rateMult, 1 + b.stats.rateBuff);
       }
     }
   }
