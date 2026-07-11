@@ -77,7 +77,20 @@ let fpsSmooth = 0;      // geglättete Render-Bildrate (rAF-Callbacks/Sek.) – 
 let updateMsSmooth = 0; // geglättete Dauer der Sim-Schritte pro Frame (ms) – für Balance-Anzeige/Blackbox
 let drawMsSmooth = 0;   // geglättete Dauer von draw() pro Frame (ms) – für Balance-Anzeige/Blackbox
 
-let view = { scale: 1, offX: 0, offY: 0, portrait: false };
+let view = {
+  scale: 1, offX: 0, offY: 0, portrait: false,
+  // Kamera: zoom = Faktor über der "alles passt rein"-Skalierung (fitScale),
+  // panX/panY = Verschiebung der Feld-Bounding-Box in Bildschirm-Pixeln
+  // gegenüber der zentrierten Lage. Am Handy per Zwei-Finger-Geste steuerbar
+  // (verschieben + Pinch-Zoom); ein Finger bleibt Spielsteuerung.
+  zoom: 1, panX: 0, panY: 0,
+  // Von resize() gefüllte Layout-Werte, damit applyView() jederzeit (auch
+  // mitten in einer Pinch-Geste) neu klemmen kann.
+  fitScale: 1, fieldW: 1, fieldH: 1, vw: 0, availW: 0, availH: 0, padTop: 0, side: 0,
+  // Einmaliger Fokus-Weltpunkt: applyView() zentriert die Kamera darauf
+  // (Levelstart: stärkste eigene Zelle) und löscht ihn dann.
+  focus: null
+};
 
 /* ======================================================================
    INITIALISIERUNG
@@ -107,6 +120,16 @@ function resetGame() {
       }
     }
   }
+
+  // Kamera zurücksetzen: am Handy startet die Ansicht hineingezoomt und auf
+  // die stärkste eigene Zelle zentriert (Zwei-Finger-Geste zum Verschieben/
+  // Zoomen); am Desktop bleibt das ganze Feld eingepasst.
+  view.zoom = coarsePointer ? CONFIG.mobileZoom : 1;
+  view.panX = 0; view.panY = 0;
+  const home = cells.reduce((a, c) =>
+    (c.owner === "player" && (!a || c.units > a.units) ? c : a), null);
+  view.focus = home ? { x: home.x, y: home.y } : null;
+  applyView();
 
   document.getElementById("overlay").classList.remove("show");
   updatePauseButton();
@@ -159,30 +182,54 @@ function resize() {
   // liegen dann Feldbreite/-höhe an vertauschten Bildschirmachsen: die lange
   // Feldbreite senkrecht, die kurze Feldhöhe waagerecht.
   view.portrait = portrait;
-  const fieldW = portrait ? LEVEL.height : LEVEL.width;
-  const fieldH = portrait ? LEVEL.width : LEVEL.height;
+  view.fieldW = portrait ? LEVEL.height : LEVEL.width;
+  view.fieldH = portrait ? LEVEL.width : LEVEL.height;
+  view.vw = vw; view.availW = availW; view.availH = availH;
+  view.padTop = padTop; view.side = side;
+  view.fitScale = Math.min(availW / view.fieldW, availH / view.fieldH);
 
-  view.scale = Math.min(availW / fieldW, availH / fieldH);
-  // Auf Touch-Geräten wirken die Zellen bei reiner "alles reinpassen"-Skalierung
-  // recht klein (viel ungenutzter Rand durch Seitenverhältnis-Unterschiede).
-  // Zusätzlicher Zoom vergrößert alles gleichmäßig um den Mittelpunkt herum;
-  // der Rand des Spielfelds darf dafür leicht über den sichtbaren Bereich hinausragen.
-  // Der Zoom ist aber so gedeckelt, dass pro Seite höchstens mobileMaxCrop
-  // Welt-Pixel abgeschnitten werden – Randzellen (mapgen-margin) bleiben so
-  // immer sichtbar und außerhalb der Wisch-Gesten-Zone des Systems.
-  if (coarsePointer) {
-    const crop = CONFIG.mobileMaxCrop || 0;
-    const capped = Math.min(
-      view.scale * CONFIG.mobileZoom,
-      availW / Math.max(1, fieldW - crop * 2),
-      availH / Math.max(1, fieldH - crop * 2)
-    );
-    view.scale = Math.max(view.scale, capped);
+  applyView();
+}
+
+// Rechnet Kamera (view.zoom/panX/panY) in die konkrete Transform (view.scale/
+// offX/offY) um und klemmt sie: Ist das Feld kleiner als der verfügbare
+// Bereich, wird zentriert; ist es größer (hineingezoomt), darf der Feldrand
+// nie weiter als bis zum Rand des verfügbaren Bereichs hereinrutschen – man
+// kann die Karte also nicht "verlieren". offX/offY = obere linke Ecke der
+// (im Hochformat gedrehten) Feld-Bounding-Box auf dem Bildschirm.
+function applyView() {
+  const v = view;
+  v.zoom = Math.max(1, Math.min(CONFIG.mobileMaxZoom, v.zoom));
+  v.scale = v.fitScale * v.zoom;
+  const w = v.fieldW * v.scale, h = v.fieldH * v.scale;
+  const baseX = (v.vw - w) / 2;
+  const baseY = v.padTop + (v.availH - h) / 2;
+
+  // Einmaliger Levelstart-Fokus: Kamera auf einen Weltpunkt zentrieren.
+  // bx/by = Position des Punkts innerhalb der Feld-Bounding-Box (Bildschirm-
+  // Achsen; im Hochformat sind Welt-x/y gegenüber der Box vertauscht/gespiegelt).
+  if (v.focus) {
+    const bx = v.portrait ? (LEVEL.height - v.focus.y) : v.focus.x;
+    const by = v.portrait ? v.focus.x : v.focus.y;
+    v.panX = (v.side + v.availW / 2 - bx * v.scale) - baseX;
+    v.panY = (v.padTop + v.availH / 2 - by * v.scale) - baseY;
+    v.focus = null;
   }
-  // offX/offY = obere linke Ecke der (ggf. gedrehten) Feld-Bounding-Box auf
-  // dem Bildschirm, in beiden Modi einheitlich.
-  view.offX = (vw - fieldW * view.scale) / 2;
-  view.offY = padTop + (availH - fieldH * view.scale) / 2;
+
+  if (w <= v.availW) {
+    v.panX = 0;
+    v.offX = baseX;
+  } else {
+    v.offX = Math.min(v.side, Math.max(v.side + v.availW - w, baseX + v.panX));
+    v.panX = v.offX - baseX;
+  }
+  if (h <= v.availH) {
+    v.panY = 0;
+    v.offY = baseY;
+  } else {
+    v.offY = Math.min(v.padTop, Math.max(v.padTop + v.availH - h, baseY + v.panY));
+    v.panY = v.offY - baseY;
+  }
 
   renderBackground();
 }
@@ -911,7 +958,34 @@ function pickCell(w) {
   return best;
 }
 
+// Zwei-Finger-Kamera (nur Touch): zweiter Finger bricht die laufende
+// Spielgeste ab und schaltet in den Kamera-Modus – gemeinsames Ziehen
+// verschiebt den Ausschnitt, Pinch zoomt (um den Fingermittelpunkt).
+// Ein einzelner Finger bleibt unverändert Spielsteuerung (Ziehen/Schneiden).
+const touchPts = new Map(); // pointerId -> {x,y} (Bildschirmkoordinaten)
+let panning = false;
+let pinchPrev = null;       // letzter Mittelpunkt + Fingerabstand
+
+function pinchState() {
+  const [a, b] = [...touchPts.values()];
+  return {
+    mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2,
+    dist: Math.max(20, Math.hypot(a.x - b.x, a.y - b.y))
+  };
+}
+
 canvas.addEventListener("pointerdown", e => {
+  if (e.pointerType === "touch") {
+    touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    canvas.setPointerCapture(e.pointerId);
+    if (touchPts.size === 2) {
+      panning = true;
+      pinchPrev = pinchState();
+      dragSource = null; cutting = false; cutLast = null; cutArmed = false;
+      return;
+    }
+    if (panning) return; // dritter Finger o.ä.: Kamera-Modus läuft weiter
+  }
   if (gameOver || inMenu || paused) return;
   const w = toWorld(e);
   pointerWorld = w;
@@ -944,6 +1018,30 @@ canvas.addEventListener("pointerdown", e => {
 });
 
 canvas.addEventListener("pointermove", e => {
+  if (e.pointerType === "touch" && touchPts.has(e.pointerId)) {
+    const p = touchPts.get(e.pointerId);
+    p.x = e.clientX; p.y = e.clientY;
+    if (panning) {
+      if (touchPts.size >= 2 && pinchPrev) {
+        const cur = pinchState();
+        const newZoom = Math.max(1, Math.min(CONFIG.mobileMaxZoom,
+          view.zoom * (cur.dist / pinchPrev.dist)));
+        // Feld-Bounding-Box um den alten Fingermittelpunkt skalieren und mit
+        // dem Mittelpunkt mitschieben; applyView() klemmt anschließend.
+        const f = (view.fitScale * newZoom) / view.scale;
+        const offX = cur.mx - (pinchPrev.mx - view.offX) * f;
+        const offY = cur.my - (pinchPrev.my - view.offY) * f;
+        const w2 = view.fieldW * view.fitScale * newZoom;
+        const h2 = view.fieldH * view.fitScale * newZoom;
+        view.zoom = newZoom;
+        view.panX = offX - (view.vw - w2) / 2;
+        view.panY = offY - (view.padTop + (view.availH - h2) / 2);
+        applyView();
+        pinchPrev = cur;
+      }
+      return; // im Kamera-Modus keine Spiel-Eingaben ableiten
+    }
+  }
   const w = toWorld(e);
   pointerWorld = w;
   hovered = pickCell(w);
@@ -958,6 +1056,16 @@ canvas.addEventListener("pointermove", e => {
 });
 
 canvas.addEventListener("pointerup", e => {
+  if (e.pointerType === "touch") {
+    touchPts.delete(e.pointerId);
+    if (panning) {
+      // Kamera-Modus endet erst, wenn weniger als zwei Finger übrig sind;
+      // der verbleibende Finger startet KEINE neue Spielgeste (erst neu
+      // aufsetzen), damit aus dem Loslassen kein versehentlicher Schnitt wird.
+      if (touchPts.size < 2) { panning = false; pinchPrev = null; }
+      return;
+    }
+  }
   if (dragSource) {
     if (!paused) {
       const cell = pickCell(toWorld(e));
@@ -973,7 +1081,13 @@ canvas.addEventListener("pointerup", e => {
   cutArmed = false;
 });
 
-canvas.addEventListener("pointercancel", () => { dragSource = null; cutting = false; cutLast = null; cutArmed = false; });
+canvas.addEventListener("pointercancel", e => {
+  if (e.pointerType === "touch") {
+    touchPts.delete(e.pointerId);
+    if (touchPts.size < 2) { panning = false; pinchPrev = null; }
+  }
+  dragSource = null; cutting = false; cutLast = null; cutArmed = false;
+});
 canvas.addEventListener("contextmenu", e => { e.preventDefault(); selected = null; dragSource = null; });
 window.addEventListener("keydown", e => {
   if (e.key === "Escape") { selected = null; dragSource = null; }

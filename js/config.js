@@ -7,19 +7,16 @@
 // Neben dem Namen (HUD/Menü) angezeigte Versionsnummer – bei jedem Release
 // zusammen mit der CACHE-Version in sw.js hochzählen, damit Nutzer (und wir
 // bei Fehlerberichten) erkennen können, ob ihr Client schon aktualisiert hat.
-const APP_VERSION = "22";
+const APP_VERSION = "23";
 
 const CONFIG = {
   // --- Ansicht ---
-  mobileZoom: 2,     // zusätzlicher Zoomfaktor auf Touch-Geräten (coarsePointer):
-                      // Spielfeld wird über die reine "alles reinpassen"-Größe
-                      // hinaus vergrößert (Ränder werden leicht angeschnitten),
-                      // damit Zellen auf kleinen Handy-Bildschirmen größer wirken.
-  mobileMaxCrop: 300, // TEST: Deckelung fast aufgehoben, damit mobileZoom 2 sichtbar wird.
-                      // Obergrenze (Welt-Pixel pro Seite), wie viel Spielfeldrand
-                      // der mobileZoom höchstens abschneiden darf. Zusammen mit
-                      // dem mapgen-margin garantiert das, dass keine Zelle in die
-                      // Wisch-Gesten-Zone am Bildschirmrand rutscht.
+  mobileZoom: 2,     // Start-Zoom der Kamera auf Touch-Geräten (coarsePointer),
+                      // als Faktor über der "alles passt rein"-Skalierung. Der
+                      // sichtbare Ausschnitt lässt sich mit zwei Fingern
+                      // verschieben und per Pinch zwischen 1 und mobileMaxZoom
+                      // zoomen (siehe Kamera in js/game.js).
+  mobileMaxZoom: 2.5, // Obergrenze für den Pinch-Zoom (1 = ganzes Feld sichtbar).
   maxDpr: 2,          // Obergrenze für devicePixelRatio bei der Canvas-Auflösung –
                       // ungedeckelt zeichnen 3x-Handys 9x so viele Pixel/Frame wie
                       // ein 1x-Display; das kostet auf schwacher Mobile-Hardware
