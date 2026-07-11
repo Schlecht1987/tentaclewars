@@ -167,7 +167,18 @@ function resize() {
   // recht klein (viel ungenutzter Rand durch Seitenverhältnis-Unterschiede).
   // Zusätzlicher Zoom vergrößert alles gleichmäßig um den Mittelpunkt herum;
   // der Rand des Spielfelds darf dafür leicht über den sichtbaren Bereich hinausragen.
-  if (coarsePointer) view.scale *= CONFIG.mobileZoom;
+  // Der Zoom ist aber so gedeckelt, dass pro Seite höchstens mobileMaxCrop
+  // Welt-Pixel abgeschnitten werden – Randzellen (mapgen-margin) bleiben so
+  // immer sichtbar und außerhalb der Wisch-Gesten-Zone des Systems.
+  if (coarsePointer) {
+    const crop = CONFIG.mobileMaxCrop || 0;
+    const capped = Math.min(
+      view.scale * CONFIG.mobileZoom,
+      availW / Math.max(1, fieldW - crop * 2),
+      availH / Math.max(1, fieldH - crop * 2)
+    );
+    view.scale = Math.max(view.scale, capped);
+  }
   // offX/offY = obere linke Ecke der (ggf. gedrehten) Feld-Bounding-Box auf
   // dem Bildschirm, in beiden Modi einheitlich.
   view.offX = (vw - fieldW * view.scale) / 2;

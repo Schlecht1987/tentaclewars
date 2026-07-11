@@ -36,7 +36,11 @@ function generateMap(params, rng) {
     symmetric: true,
     startUnits: { player: 30, ai: 30 },
     minDist: 110,
-    margin: 70
+    // Mindestabstand der Zell-Mittelpunkte zum Feldrand. Groß genug, dass
+    // Randzellen auch mit Mobile-Zoom (game.js schneidet bis zu
+    // CONFIG.mobileMaxCrop Welt-Pixel pro Seite ab) klar innerhalb des
+    // Bildschirms liegen und nicht die Wisch-Gesten des Handys auslösen.
+    margin: 100
   }, params);
 
   const factions = ["player", ...p.aiFactions];

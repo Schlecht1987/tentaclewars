@@ -13,7 +13,10 @@ const CAMPAIGN_SIZE = 50;
 // Bump bei jeder Änderung an generateMap/campaignDifficulty (siehe Kommentar
 // oben). v2: Zell-Ausbau (tierMax) eingeführt – zusätzliche rng-Ziehungen.
 // v3: flächenskalierter Mindestabstand (spread) – Zellen nutzen die ganze Karte.
-const CAMPAIGN_SEED = 0xC0FFE3;
+// v4: Mobile-Überarbeitung – kleinere Karten, weniger Zellen, größerer
+//     Randabstand (margin 100), sanftere Anfangs-Schwierigkeit, Symmetrie
+//     als Regel statt Ausnahme.
+const CAMPAIGN_SEED = 0xC0FFE4;
 
 function lerp(a, b, t) { return a + (b - a) * t; }
 
@@ -27,19 +30,27 @@ function campaignDifficulty(n) {
   if (n >= 12) types.push("attacker");
   return {
     profile: {
-      interval: lerp(4.5, 1.8, t),
-      minUnits: Math.round(lerp(18, 8, t)),
-      commandsPerTick: n >= 35 ? 2 : 1,
-      targetNoise: lerp(8, 0, t)
+      // Anfangs sehr träge und "kurzsichtige" KI (großes Intervall, viel
+      // Ziel-Rauschen), zum Ende hin schnell und präzise – so steigt die
+      // gefühlte Schwierigkeit stetig von leicht bis schwer.
+      interval: lerp(5.5, 1.6, t),
+      minUnits: Math.round(lerp(20, 8, t)),
+      commandsPerTick: n >= 40 ? 2 : 1,
+      targetNoise: lerp(10, 0, t)
     },
-    aiCount: n <= 14 ? 1 : (n <= 34 ? 2 : 3),
-    width: Math.round(lerp(1000, 1350, t)),
-    height: Math.round(lerp(640, 860, t)),
-    cellsPerFaction: n <= 5 ? 2 : (n <= 20 ? 3 : 4),
-    neutralCells: Math.round(lerp(3, 9, t)),
+    aiCount: n <= 16 ? 1 : (n <= 36 ? 2 : 3),
+    // Bewusst kompakte Karten: weniger Fläche + weniger Zellen heißt auf dem
+    // Handy größere Zellen und präzisere Schnitte. Die Schwierigkeit kommt
+    // aus der KI-Stärke, nicht aus der Kartengröße.
+    width: Math.round(lerp(900, 1200, t)),
+    height: Math.round(lerp(580, 760, t)),
+    cellsPerFaction: n <= 8 ? 2 : (n <= 30 ? 3 : 4),
+    neutralCells: Math.round(lerp(2, 7, t)),
     allowedTypes: types,
-    symmetric: n % 3 !== 0, // jedes dritte Level: bewusst asymmetrische Karte
-    aiUnits: Math.round(lerp(24, 38, t))
+    // Symmetrie ist die Regel (wirkt gestaltet und fair); nur ab Level 15
+    // ist jedes fünfte Level bewusst asymmetrisch als Abwechslung.
+    symmetric: !(n >= 15 && n % 5 === 0),
+    aiUnits: Math.round(lerp(22, 40, t))
   };
 }
 

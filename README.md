@@ -59,10 +59,13 @@ heim), das vordere Stück fließt weiter zum Ziel und wirkt dort.
 
 - **Kampagne (50 Level):** Level werden nacheinander freigeschaltet und
   deterministisch erzeugt – Level n ist bei jedem Spieler dieselbe Karte.
-  Die Schwierigkeit steigt: schnellere und kluger zielende KI, ab Level 15
-  zwei und ab Level 35 drei KI-Fraktionen, größere Karten, mehr Zellen.
+  Die Schwierigkeit steigt stetig von leicht bis schwer – vor allem über die
+  KI (anfangs träge und ungenau, später schnell und präzise), ab Level 17
+  zwei und ab Level 37 drei KI-Fraktionen, dazu allmählich mehr Zellen.
   Spezial-Zelltypen kommen nach und nach dazu (Fabrik ab 3, Heiler ab 6,
-  Bunker ab 9, Angreifer ab 12); jedes dritte Level ist bewusst asymmetrisch.
+  Bunker ab 9, Angreifer ab 12). Die Karten sind in der Regel symmetrisch
+  (gespiegelt bzw. rotiert – faire, „gestaltet" wirkende Startlagen); erst
+  ab Level 15 ist jedes fünfte Level bewusst asymmetrisch.
   Schlüssel-Level (1, 10, 50) sind handgebaut. Der Fortschritt wird im
   Browser gespeichert (localStorage); nach einem Sieg geht es per
   „Nächstes Level" direkt weiter.
@@ -198,9 +201,12 @@ Startpunkte) – für die Kampagne unter der Levelnummer in
   Service Worker (`sw.js`, cache-first) – installierbar und offline spielbar,
   sobald über http(s) ausgeliefert.
 - Canvas-Rendering mit devicePixelRatio-Skalierung; das virtuelle Spielfeld
-  (Standard 1000×640, Kampagne bis 1350×860) wird ins Fenster eingepasst.
-  Auf kleinen Bildschirmen werden Legende/Hinweiszeile ausgeblendet und die
-  Ränder verkleinert; Safe-Area-Insets (Notch) werden berücksichtigt.
+  (Standard 1000×640, Kampagne 900×580 bis 1200×760) wird ins Fenster
+  eingepasst. Auf Touch-Geräten zoomt die Ansicht zusätzlich hinein
+  (gedeckelt, sodass Randzellen sichtbar bleiben und nicht in die
+  Wisch-Gesten-Zone des Systems rutschen). Auf kleinen Bildschirmen werden
+  Legende/Hinweiszeile ausgeblendet und die Ränder verkleinert;
+  Safe-Area-Insets (Notch) werden berücksichtigt.
 - Eingabe über Pointer-Events (Maus und Touch).
 - Deterministischer Zufall (mulberry32): Kampagnen-Level und Zufallskarten
   sind über ihren Seed exakt reproduzierbar.
