@@ -72,9 +72,9 @@ const TOWER_TYPES = {
     color: "#8ac06a",
     levels: [
       { damage: 12, range: 110, fireRate: 0.5, targets: 1 },   // fireRate = Zeit zwischen Schüssen (s)
-      { damage: 18, range: 125, fireRate: 0.42, targets: 3, upgradeCost: 60 },
-      { damage: 26, range: 140, fireRate: 0.36, targets: 999, upgradeCost: 130 },
-      { damage: 45, range: 155, fireRate: 0.3, targets: 999, upgradeCost: 260 },
+      { damage: 15, range: 125, fireRate: 0.44, targets: 3, upgradeCost: 70 },
+      { damage: 20, range: 135, fireRate: 0.4, targets: 999, upgradeCost: 160 },
+      { damage: 32, range: 150, fireRate: 0.34, targets: 999, upgradeCost: 300 },
     ],
     projectile: { speed: 420, color: "#d8f0c0", size: 4 },
   },
@@ -87,7 +87,7 @@ const TOWER_TYPES = {
     levels: [
       { damage: 30, range: 100, fireRate: 1.4, splash: 55 },
       { damage: 55, range: 110, fireRate: 1.25, splash: 65, upgradeCost: 110 },
-      { damage: 95, range: 120, fireRate: 1.1, splash: 80, stun: 0.5, upgradeCost: 220 },
+      { damage: 95, range: 120, fireRate: 1.1, splash: 80, stun: 0.4, upgradeCost: 240 },
     ],
     projectile: { speed: 260, color: "#ffb347", size: 6 },
   },
@@ -100,7 +100,7 @@ const TOWER_TYPES = {
     levels: [
       { damage: 6, range: 95, fireRate: 0.8, slow: 0.5, slowDuration: 1.5 },
       { damage: 12, range: 110, fireRate: 0.7, slow: 0.6, slowDuration: 2.0, upgradeCost: 90 },
-      { damage: 20, range: 125, fireRate: 0.9, slow: 0.7, slowDuration: 2.5, splash: 70, upgradeCost: 180 },
+      { damage: 18, range: 125, fireRate: 1.0, slow: 0.65, slowDuration: 2.2, splash: 60, upgradeCost: 200 },
     ],
     projectile: { speed: 340, color: "#bfeaff", size: 5 },
   },
@@ -112,8 +112,8 @@ const TOWER_TYPES = {
     color: "#b06ac0",
     levels: [
       { damage: 90, range: 220, fireRate: 2.2 },
-      { damage: 170, range: 250, fireRate: 2.0, critEvery: 3, critMult: 2, upgradeCost: 160 },
-      { damage: 300, range: 280, fireRate: 1.8, critEvery: 2, critMult: 2.5, upgradeCost: 320 },
+      { damage: 160, range: 250, fireRate: 2.0, critEvery: 3, critMult: 2, upgradeCost: 170 },
+      { damage: 260, range: 280, fireRate: 1.8, critEvery: 2, critMult: 2, upgradeCost: 340 },
     ],
     projectile: { speed: 700, color: "#f0c0ff", size: 4 },
   },
@@ -136,9 +136,9 @@ const TOWER_TYPES = {
     cost: 120,
     color: "#5ad08a",
     levels: [
-      { rateBuff: 0.25, range: 90 },
-      { rateBuff: 0.4, range: 105, upgradeCost: 140 },
-      { rateBuff: 0.6, range: 120, upgradeCost: 280 },
+      { rateBuff: 0.2, range: 90 },
+      { rateBuff: 0.35, range: 105, upgradeCost: 140 },
+      { rateBuff: 0.5, range: 120, upgradeCost: 280 },
     ],
   },
 };

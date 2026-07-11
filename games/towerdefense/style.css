@@ -45,26 +45,31 @@ canvas {
 
 #sidebar h2 { font-size: 1rem; color: #aab; margin-bottom: 6px; }
 
-#shop { display: flex; flex-direction: column; gap: 8px; }
+/* Shop: kompakte Symbol-Kacheln, Details erscheinen in der Infobox */
+#shop { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 
 .shop-item {
   background: #262b38;
   border: 2px solid #3a4155;
   border-radius: 8px;
-  padding: 10px;
+  padding: 8px 4px 6px;
   cursor: pointer;
   transition: border-color .15s, background .15s;
-  text-align: left;
   color: inherit;
   font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
 }
 .shop-item:hover { border-color: #6a7bb0; }
 .shop-item.selected { border-color: #ffd75e; background: #2f3547; }
 .shop-item.unaffordable { opacity: .45; cursor: not-allowed; }
 
-.shop-item .name { font-weight: 600; }
-.shop-item .cost { float: right; color: #ffd75e; }
-.shop-item .desc { font-size: .78rem; color: #99a; margin-top: 3px; }
+.shop-item .icon { font-size: 1.5rem; line-height: 1.2; }
+.shop-item .cost { font-size: .75rem; color: #ffd75e; }
+
+.info-desc { font-size: .78rem; color: #99a; }
 
 #tools { display: flex; gap: 8px; }
 .tool-btn { flex: 1; font-size: .82rem; border: 2px solid transparent; }
@@ -211,6 +216,7 @@ button:hover { background: #4a5270; }
   main { flex-direction: column; align-items: stretch; }
   canvas { width: 100%; max-width: 960px; height: auto; }
   #sidebar { flex: 1 1 auto; max-height: none; width: 100%; max-width: 960px; }
+  #shop { grid-template-columns: repeat(6, 1fr); }
   header { flex-wrap: wrap; gap: 6px; }
   #stats { flex-wrap: wrap; gap: 10px; font-size: 1rem; }
 }

@@ -109,21 +109,13 @@ const ui = {
   levelName: document.getElementById("level-name"),
 };
 
-// Shop aufbauen
+// Shop aufbauen: kompakte Symbol-Knöpfe, Details erscheinen in der Infobox
 for (const [key, t] of Object.entries(TOWER_TYPES)) {
   const btn = document.createElement("button");
   btn.className = "shop-item";
   btn.dataset.type = key;
-  const lv = t.levels[0];
-  const statLine = lv.buff !== undefined
-    ? `Buff: +${Math.round(lv.buff * 100)} % Schaden · Radius ${lv.range}`
-    : lv.rateBuff !== undefined
-    ? `Buff: +${Math.round(lv.rateBuff * 100)} % Tempo · Radius ${lv.range}`
-    : `Schaden: ${lv.damage} · ${(1 / lv.fireRate).toFixed(1)} Schuss/s · ${(lv.damage / lv.fireRate).toFixed(0)} DPS`;
-  btn.innerHTML =
-    `<span class="cost">${t.cost} 💰</span><span class="name">${t.icon} ${t.name}</span>` +
-    `<div class="desc">${t.desc}</div>` +
-    `<div class="desc">${statLine}</div>`;
+  btn.title = `${t.name} (${t.cost} 💰)`;
+  btn.innerHTML = `<span class="icon">${t.icon}</span><span class="cost">${t.cost}💰</span>`;
   btn.addEventListener("click", () => {
     if (state.gold < t.cost) return;
     state.placingType = state.placingType === key ? null : key;
@@ -132,6 +124,21 @@ for (const [key, t] of Object.entries(TOWER_TYPES)) {
     updateUI();
   });
   ui.shop.appendChild(btn);
+}
+
+// Info-HTML für einen Turmtyp (Grundwerte, Level 1) – für die Infobox bei Shop-Auswahl
+function towerInfoHtml(t) {
+  const lv = t.levels[0];
+  const statLine = lv.buff !== undefined
+    ? `Buff: +${Math.round(lv.buff * 100)} % Schaden<br>Radius: ${lv.range}`
+    : lv.rateBuff !== undefined
+    ? `Buff: +${Math.round(lv.rateBuff * 100)} % Angriffstempo<br>Radius: ${lv.range}`
+    : `Schaden: ${lv.damage}<br>Reichweite: ${lv.range}<br>Feuerrate: ${(1 / lv.fireRate).toFixed(1)}/s` +
+      (lv.splash ? `<br>Fläche: ${lv.splash}` : "") +
+      (lv.slow ? `<br>Slow: ${Math.round(lv.slow * 100)} %` : "");
+  return `<b>${t.icon} ${t.name}</b> · ${t.cost} 💰<br>` +
+    `<span class="info-desc">${t.desc}</span><br>${statLine}<br>` +
+    `<span class="info-desc">Zum Bauen freies Feld anklicken.</span>`;
 }
 
 function updateUI() {
@@ -151,6 +158,8 @@ function updateUI() {
   ui.toolSell.classList.toggle("active", state.tool === "sell");
 
   const tw = state.selectedTower;
+  ui.btnUpgrade.classList.toggle("hidden", !tw);
+  ui.btnSell.classList.toggle("hidden", !tw);
   if (tw) {
     ui.selection.classList.remove("hidden");
     const s = tw.stats;
@@ -178,6 +187,10 @@ function updateUI() {
       ui.btnUpgrade.disabled = state.gold < tw.upgradeCost;
     }
     ui.btnSell.textContent = `Verkaufen (+${tw.sellValue} 💰)`;
+  } else if (state.placingType) {
+    // Shop-Auswahl: Turm-Details in der Infobox zeigen
+    ui.selection.classList.remove("hidden");
+    ui.selInfo.innerHTML = towerInfoHtml(TOWER_TYPES[state.placingType]);
   } else {
     ui.selection.classList.add("hidden");
   }
