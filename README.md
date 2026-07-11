@@ -202,10 +202,9 @@ Startpunkte) – für die Kampagne unter der Levelnummer in
   sobald über http(s) ausgeliefert.
 - Canvas-Rendering mit devicePixelRatio-Skalierung; das virtuelle Spielfeld
   (Standard 1000×640, Kampagne 900×580 bis 1200×760) wird ins Fenster
-  eingepasst. Auf Touch-Geräten startet die Ansicht hineingezoomt (Kamera
-  zentriert auf die stärkste eigene Zelle); mit **zwei Fingern** lässt sich
-  der Ausschnitt verschieben und per Pinch zoomen (1× bis 2,5×), ein Finger
-  bleibt Spielsteuerung. Auf kleinen Bildschirmen werden Legende/Hinweiszeile
+  eingepasst. Auf Touch-Geräten sieht man beim Start die ganze Karte und kann
+  mit **zwei Fingern** den Ausschnitt verschieben und per Pinch zoomen
+  (1× bis 2,5×); ein Finger bleibt Spielsteuerung. Auf kleinen Bildschirmen werden Legende/Hinweiszeile
   ausgeblendet und die Ränder verkleinert; Safe-Area-Insets (Notch) werden
   berücksichtigt.
 - Eingabe über Pointer-Events (Maus und Touch).

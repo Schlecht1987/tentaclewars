@@ -7,15 +7,15 @@
 // Neben dem Namen (HUD/Menü) angezeigte Versionsnummer – bei jedem Release
 // zusammen mit der CACHE-Version in sw.js hochzählen, damit Nutzer (und wir
 // bei Fehlerberichten) erkennen können, ob ihr Client schon aktualisiert hat.
-const APP_VERSION = "23";
+const APP_VERSION = "24";
 
 const CONFIG = {
   // --- Ansicht ---
-  mobileZoom: 2,     // Start-Zoom der Kamera auf Touch-Geräten (coarsePointer),
-                      // als Faktor über der "alles passt rein"-Skalierung. Der
-                      // sichtbare Ausschnitt lässt sich mit zwei Fingern
-                      // verschieben und per Pinch zwischen 1 und mobileMaxZoom
-                      // zoomen (siehe Kamera in js/game.js).
+  mobileZoom: 1,     // Start-Zoom der Kamera auf Touch-Geräten (coarsePointer),
+                      // als Faktor über der "alles passt rein"-Skalierung.
+                      // 1 = beim Levelstart ist die ganze Karte sichtbar; der
+                      // Ausschnitt lässt sich mit zwei Fingern verschieben und
+                      // per Pinch bis mobileMaxZoom vergrößern (js/game.js).
   mobileMaxZoom: 2.5, // Obergrenze für den Pinch-Zoom (1 = ganzes Feld sichtbar).
   maxDpr: 2,          // Obergrenze für devicePixelRatio bei der Canvas-Auflösung –
                       // ungedeckelt zeichnen 3x-Handys 9x so viele Pixel/Frame wie
