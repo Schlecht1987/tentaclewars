@@ -11,7 +11,7 @@ und offline spielbar.
 | Spiel | Ordner | Kurzbeschreibung |
 |---|---|---|
 | 🦠 **Zellkrieg** | `games/zellkrieg/` | Echtzeit-Strategie im Stil von *Tentacle Wars* / *Galcon*: 50-Level-Kampagne, Zufallsspiel-Generator gegen 1–3 KIs, Sandbox. Ausführliche Doku weiter unten. |
-| 🏰 **Tower Defense** | `games/towerdefense/` | 24×16-Raster mit festem Gegnerpfad, 5 Turmtypen (u.a. Flächenschaden, Slow, Verstärker-Aura), 30 Wellen mit Bossen, Upgrades/Verkauf, Auto-Wellen und Spieltempo 1–3×. |
+| 🏰 **Tower Defense** | `games/towerdefense/` | 10-Level-Kampagne auf 24×16-Rastern mit jeweils eigener Karte und steigender Schwierigkeit (12–30 Wellen, Bosse alle 10 Wellen), 5 Turmtypen (u.a. Flächenschaden, Slow, Verstärker-Aura), Upgrades/Verkauf, Auto-Wellen, Spieltempo 1–3×. Nach der Kampagne schaltet sich ein 💀 **Hardcore-Modus** frei: 1 Leben, Wellen starten automatisch nacheinander, fest 3× Geschwindigkeit. Fortschritt wird lokal gespeichert. |
 
 **Online-Version (Claude-Artifact):** https://claude.ai/code/artifact/b7a591a2-4516-4e65-94ea-6ee11b5875fa
 

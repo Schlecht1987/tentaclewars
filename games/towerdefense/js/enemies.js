@@ -1,10 +1,13 @@
 // Gegner-Logik: Bewegung entlang des Pfads, Schaden, Slow-Effekte
 
-// Pfad in Pixel-Wegpunkte umrechnen (Mitte der Kacheln)
-const PATH_PIXELS = PATH_WAYPOINTS.map(([c, r]) => ({
-  x: c * CONFIG.tileSize + CONFIG.tileSize / 2,
-  y: r * CONFIG.tileSize + CONFIG.tileSize / 2,
-}));
+// Pfad in Pixel-Wegpunkte umrechnen (Mitte der Kacheln) – wird pro Level neu gesetzt
+let PATH_PIXELS = [];
+function computePathPixels(waypoints) {
+  PATH_PIXELS = waypoints.map(([c, r]) => ({
+    x: c * CONFIG.tileSize + CONFIG.tileSize / 2,
+    y: r * CONFIG.tileSize + CONFIG.tileSize / 2,
+  }));
+}
 
 class Enemy {
   constructor(typeKey, wave) {
@@ -106,7 +109,7 @@ class Enemy {
 class WaveSpawner {
   constructor(waveNumber) {
     this.queue = [];
-    const wave = buildWave(waveNumber);
+    const wave = buildWave(waveNumber, state.levelDef.hpMul);
     let t = 0;
     for (const g of wave.groups) {
       for (let i = 0; i < g.count; i++) {

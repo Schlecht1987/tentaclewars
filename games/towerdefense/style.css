@@ -149,6 +149,62 @@ button:hover { background: #4a5270; }
 #btn-restart { background: #2e6b46; padding: 10px 24px; }
 
 #home-link { text-decoration: none; margin-right: 4px; }
+#level-name { font-size: .95rem; color: #aab; font-weight: 400; }
+
+/* ---- Levelauswahl ---- */
+#menu {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 18, .92);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  z-index: 10;
+}
+#menu-box {
+  background: #262b38;
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin: 24px 12px;
+  max-width: 720px;
+  width: 100%;
+}
+#menu-box h2 { margin-bottom: 4px; }
+#hc-title { margin-top: 20px; }
+.menu-sub { color: #99a; font-size: .85rem; margin-bottom: 12px; }
+.menu-sub a { color: #8ab4ff; }
+
+#level-grid, #level-grid-hc {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+.level-tile {
+  background: #2f3547;
+  border: 2px solid #3a4155;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.level-tile:hover:not(:disabled) { border-color: #6a7bb0; background: #363d52; }
+.level-tile.done { border-color: #2e6b46; }
+.level-tile.hc:hover:not(:disabled) { border-color: #b05a5a; }
+.level-tile.hc.done { border-color: #b05a5a; }
+.level-tile.locked { opacity: .4; cursor: not-allowed; }
+.level-tile .lv-num { color: #ffd75e; font-weight: 700; }
+.level-tile.done .lv-num { color: #6ad06a; }
+.level-tile .lv-name { font-weight: 600; }
+.level-tile .lv-meta { font-size: .75rem; color: #99a; }
+.level-tile .lv-desc { font-size: .75rem; color: #778; }
+
+#btn-next { background: #2e6b46; margin-right: 6px; }
+#btn-next:hover { background: #38855a; }
+#btn-restart { margin-right: 6px; }
+#overlay-box button { margin-top: 4px; }
 
 /* Mobile: Sidebar unter das (mitskalierende) Spielfeld stapeln */
 @media (max-width: 1240px) {

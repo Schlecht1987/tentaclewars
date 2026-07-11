@@ -3,16 +3,63 @@ const CONFIG = {
   tileSize: 40,
   cols: 24,
   rows: 16,
-  startGold: 100,
-  startLives: 20,
-  totalWaves: 30,    // so viele Wellen bis zum Sieg
   waveBonusBase: 15, // Gold-Bonus pro geschaffter Welle (+ Welle * 3)
 };
 
-// Pfad der Gegner als Gitter-Wegpunkte (Spalte, Reihe)
-const PATH_WAYPOINTS = [
-  [-1, 3], [4, 3], [4, 9], [10, 9], [10, 2], [16, 2],
-  [16, 12], [6, 12], [6, 14], [20, 14], [20, 6], [24, 6],
+// ---- Kampagne: 10 Level mit eigener Karte + Schwierigkeit ----
+// waypoints: Gitter-Wegpunkte (Spalte, Reihe), nur horizontale/vertikale Segmente.
+// hpMul skaliert die Gegner-HP zusätzlich zur Wellen-Skalierung.
+const LEVELS = [
+  {
+    name: "Grüne Wiese", desc: "Langer Schlangenpfad – viel Zeit zum Schießen.",
+    waves: 12, startGold: 120, startLives: 25, hpMul: 0.8,
+    waypoints: [[-1, 2], [4, 2], [4, 13], [9, 13], [9, 4], [14, 4], [14, 13], [19, 13], [19, 4], [24, 4]],
+  },
+  {
+    name: "Flusslauf", desc: "Gemächliche Kurven durchs Tal.",
+    waves: 14, startGold: 110, startLives: 20, hpMul: 0.9,
+    waypoints: [[-1, 8], [5, 8], [5, 3], [11, 3], [11, 12], [17, 12], [17, 5], [24, 5]],
+  },
+  {
+    name: "Die Spirale", desc: "Der Pfad windet sich zur Burg in der Mitte.",
+    waves: 16, startGold: 110, startLives: 20, hpMul: 0.95,
+    waypoints: [[-1, 1], [21, 1], [21, 14], [3, 14], [3, 5], [17, 5], [17, 10], [8, 10]],
+  },
+  {
+    name: "Altes Schlachtfeld", desc: "Die klassische Karte – verschlungen und lang.",
+    waves: 18, startGold: 100, startLives: 20, hpMul: 1.0,
+    waypoints: [[-1, 3], [4, 3], [4, 9], [10, 9], [10, 2], [16, 2], [16, 12], [6, 12], [6, 14], [20, 14], [20, 6], [24, 6]],
+  },
+  {
+    name: "Doppel-U", desc: "Zwei weite Bögen – nutze die Innenseiten.",
+    waves: 20, startGold: 100, startLives: 18, hpMul: 1.05,
+    waypoints: [[-1, 4], [20, 4], [20, 8], [4, 8], [4, 12], [24, 12]],
+  },
+  {
+    name: "Der Haken", desc: "Nur eine Kehre – die Gegner sind schnell durch.",
+    waves: 22, startGold: 100, startLives: 15, hpMul: 1.1,
+    waypoints: [[-1, 13], [12, 13], [12, 2], [24, 2]],
+  },
+  {
+    name: "S-Kurve", desc: "Kurzes Stück Straße, harte Wellen.",
+    waves: 24, startGold: 90, startLives: 15, hpMul: 1.15,
+    waypoints: [[-1, 6], [8, 6], [8, 10], [16, 10], [16, 6], [24, 6]],
+  },
+  {
+    name: "Die Treppe", desc: "Stufe um Stufe hinab zur Festung.",
+    waves: 26, startGold: 90, startLives: 12, hpMul: 1.2,
+    waypoints: [[-1, 2], [5, 2], [5, 5], [10, 5], [10, 8], [15, 8], [15, 11], [20, 11], [20, 14], [24, 14]],
+  },
+  {
+    name: "Schnellstraße", desc: "Fast kein Umweg – jeder Schuss muss sitzen.",
+    waves: 28, startGold: 90, startLives: 10, hpMul: 1.3,
+    waypoints: [[-1, 7], [16, 7], [16, 9], [24, 9]],
+  },
+  {
+    name: "Der letzte Wall", desc: "Schnurgerade durch – das Finale.",
+    waves: 30, startGold: 100, startLives: 10, hpMul: 1.4,
+    waypoints: [[-1, 8], [24, 8]],
+  },
 ];
 
 // Turm-Typen
@@ -93,11 +140,12 @@ const ENEMY_TYPES = {
   boss:    { name: "Boss",    hp: 2000, speed: 30, gold: 100, color: "#e05a8a", size: 22 },
 };
 
-// Wellen-Generator: liefert für Wellennummer n die Zusammensetzung
-function buildWave(n) {
+// Wellen-Generator: liefert für Wellennummer n die Zusammensetzung.
+// hpMul: zusätzlicher Level-Multiplikator auf die Gegner-HP.
+function buildWave(n, hpMul = 1) {
   const groups = [];
   // HP wächst exponentiell – Gold nur linear. Dadurch wird es spürbar härter.
-  const hpScale = Math.pow(1.16, n - 1);
+  const hpScale = Math.pow(1.16, n - 1) * hpMul;
   const goldScale = 1 + (n - 1) * 0.05;
   // Gegner werden mit jeder Welle etwas schneller (bis +50 %)
   const speedScale = Math.min(1.5, 1 + (n - 1) * 0.02);

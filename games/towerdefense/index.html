@@ -15,7 +15,7 @@
 <body>
 <div id="wrapper">
   <header>
-    <h1><a href="../../index.html" id="home-link" title="Zur Spiele-Plattform">🏠</a> ⚔️ Tower Defense</h1>
+    <h1><a href="../../index.html" id="home-link" title="Zur Spiele-Plattform">🏠</a> ⚔️ Tower Defense <span id="level-name"></span></h1>
     <div id="stats">
       <span class="stat">💰 <b id="gold">0</b></span>
       <span class="stat">❤️ <b id="lives">0</b></span>
@@ -67,7 +67,21 @@
     <div id="overlay-box">
       <h2 id="overlay-title"></h2>
       <p id="overlay-text"></p>
-      <button id="btn-restart">Neu starten</button>
+      <button id="btn-next" class="hidden">Nächstes Level ▶</button>
+      <button id="btn-restart">Nochmal spielen</button>
+      <button id="btn-menu">Levelauswahl</button>
+    </div>
+  </div>
+
+  <div id="menu">
+    <div id="menu-box">
+      <h2>⚔️ Kampagne</h2>
+      <p class="menu-sub">10 Level – von der grünen Wiese bis zum letzten Wall.</p>
+      <div id="level-grid"></div>
+      <h2 id="hc-title">💀 Hardcore</h2>
+      <p class="menu-sub" id="hc-sub"></p>
+      <div id="level-grid-hc"></div>
+      <p class="menu-sub"><a href="../../index.html">← Zur Spiele-Plattform</a></p>
     </div>
   </div>
 </div>

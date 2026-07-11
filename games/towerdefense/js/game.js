@@ -3,27 +3,65 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// ---- Pfad-Kacheln berechnen (blockiert fürs Bauen) ----
-const pathTiles = new Set();
-for (let i = 0; i < PATH_WAYPOINTS.length - 1; i++) {
-  let [c1, r1] = PATH_WAYPOINTS[i];
-  const [c2, r2] = PATH_WAYPOINTS[i + 1];
-  const dc = Math.sign(c2 - c1);
-  const dr = Math.sign(r2 - r1);
-  pathTiles.add(`${c1},${r1}`);
-  while (c1 !== c2 || r1 !== r2) {
-    c1 += dc;
-    r1 += dr;
+// ---- Pfad-Kacheln berechnen (blockiert fürs Bauen) – pro Level neu ----
+let pathTiles = new Set();
+function buildPathTiles(waypoints) {
+  pathTiles = new Set();
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    let [c1, r1] = waypoints[i];
+    const [c2, r2] = waypoints[i + 1];
+    const dc = Math.sign(c2 - c1);
+    const dr = Math.sign(r2 - r1);
     pathTiles.add(`${c1},${r1}`);
+    while (c1 !== c2 || r1 !== r2) {
+      c1 += dc;
+      r1 += dr;
+      pathTiles.add(`${c1},${r1}`);
+    }
   }
+}
+
+// ---- Kampagnen-Fortschritt (localStorage) ----
+const PROGRESS_KEY = "towerdefense.progress.v1";
+
+function loadProgress() {
+  try {
+    const p = JSON.parse(localStorage.getItem(PROGRESS_KEY));
+    if (p && p.v === 1) return { normal: p.normal || [], hardcore: p.hardcore || [] };
+  } catch (e) { /* privater Modus o. Ä. */ }
+  return { normal: [], hardcore: [] };
+}
+
+function markCompleted(index, hardcore) {
+  const p = loadProgress();
+  const list = hardcore ? p.hardcore : p.normal;
+  if (!list.includes(index)) list.push(index);
+  try {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ v: 1, normal: p.normal, hardcore: p.hardcore }));
+  } catch (e) { /* ignorieren */ }
+}
+
+function isUnlocked(index, hardcore, p) {
+  if (hardcore && !hardcoreUnlocked(p)) return false;
+  if (index === 0) return true;
+  return (hardcore ? p.hardcore : p.normal).includes(index - 1);
+}
+
+function hardcoreUnlocked(p) {
+  return LEVELS.every((_, i) => p.normal.includes(i));
 }
 
 // ---- Spielzustand ----
 const state = {};
+state.levelIndex = 0;
+state.levelDef = LEVELS[0];
+state.hardcore = false;
 
 function resetState() {
-  state.gold = CONFIG.startGold;
-  state.lives = CONFIG.startLives;
+  const lv = state.levelDef;
+  state.gold = lv.startGold;
+  state.lives = state.hardcore ? 1 : lv.startLives;
+  state.totalWaves = lv.waves;
   state.wave = 0;
   state.kills = 0;
   state.enemies = [];
@@ -34,14 +72,12 @@ function resetState() {
   state.placingType = null;   // Turmtyp, der gerade platziert wird
   state.tool = null;          // "upgrade" | "sell" | null – Klick-Werkzeug
   state.selectedTower = null;
-  state.speed = 1;
-  state.autoWave = false;
+  state.speed = state.hardcore ? 3 : 1;
+  state.autoWave = state.hardcore; // Hardcore: Wellen starten automatisch nacheinander
   state.damageDealt = 0;
   state.gameOver = false;
   state.hoverTile = null;
 }
-
-resetState();
 
 // ---- UI-Elemente ----
 const ui = {
@@ -64,6 +100,13 @@ const ui = {
   overlayTitle: document.getElementById("overlay-title"),
   overlayText: document.getElementById("overlay-text"),
   btnRestart: document.getElementById("btn-restart"),
+  btnNext: document.getElementById("btn-next"),
+  btnMenu: document.getElementById("btn-menu"),
+  menu: document.getElementById("menu"),
+  levelGrid: document.getElementById("level-grid"),
+  levelGridHc: document.getElementById("level-grid-hc"),
+  hcSub: document.getElementById("hc-sub"),
+  levelName: document.getElementById("level-name"),
 };
 
 // Shop aufbauen
@@ -92,7 +135,8 @@ for (const [key, t] of Object.entries(TOWER_TYPES)) {
 function updateUI() {
   ui.gold.textContent = state.gold;
   ui.lives.textContent = state.lives;
-  ui.wave.textContent = `${state.wave}/${CONFIG.totalWaves}`;
+  ui.wave.textContent = `${state.wave}/${state.totalWaves}`;
+  ui.levelName.textContent = `– Level ${state.levelIndex + 1}: ${state.levelDef.name}${state.hardcore ? " 💀" : ""}`;
   ui.kills.textContent = state.kills;
 
   for (const el of ui.shop.children) {
@@ -131,11 +175,11 @@ function updateUI() {
   }
 
   const waveActive = state.spawner && (!state.spawner.finished || state.enemies.length > 0);
-  const allDone = state.wave >= CONFIG.totalWaves && !waveActive;
+  const allDone = state.wave >= state.totalWaves && !waveActive;
   ui.btnStart.disabled = !!waveActive || allDone || state.gameOver;
   ui.btnStart.textContent = waveActive ? `Welle ${state.wave} läuft…`
     : allDone ? "Alle Wellen geschafft!"
-    : `Welle ${state.wave + 1}/${CONFIG.totalWaves} starten ▶`;
+    : `Welle ${state.wave + 1}/${state.totalWaves} starten ▶`;
   ui.waveInfo.textContent = waveActive
     ? `Gegner übrig: ${state.enemies.length + (state.spawner.queue.length - state.spawner.index)}`
     : state.wave > 0 ? "Bereit für die nächste Welle." : "Baue Türme und starte die erste Welle!";
@@ -171,9 +215,9 @@ function updateStats() {
   html += `Kills: <span class="val">${state.kills}</span>`;
 
   // Vorschau: Gegner-HP der nächsten Welle
-  if (state.wave < CONFIG.totalWaves) {
-    const next = buildWave(state.wave + 1);
-    html += `<div class="sec">Nächste Welle (${state.wave + 1}/${CONFIG.totalWaves})</div>`;
+  if (state.wave < state.totalWaves) {
+    const next = buildWave(state.wave + 1, state.levelDef.hpMul);
+    html += `<div class="sec">Nächste Welle (${state.wave + 1}/${state.totalWaves})</div>`;
     for (const g of next.groups) {
       const e = ENEMY_TYPES[g.type];
       html += `${g.count}× ${e.name}: <span class="val">${Math.round(e.hp * next.hpScale)} HP</span><br>`;
@@ -281,7 +325,7 @@ ui.btnSell.addEventListener("click", () => {
 });
 
 function startNextWave() {
-  if (state.gameOver || state.spawner || state.wave >= CONFIG.totalWaves) return;
+  if (state.gameOver || state.spawner || state.wave >= state.totalWaves) return;
   state.wave++;
   state.spawner = new WaveSpawner(state.wave);
   updateUI();
@@ -290,6 +334,7 @@ function startNextWave() {
 ui.btnStart.addEventListener("click", startNextWave);
 
 ui.chkAuto.addEventListener("change", () => {
+  if (state.hardcore) { ui.chkAuto.checked = true; return; } // im Hardcore fest an
   state.autoWave = ui.chkAuto.checked;
   // Direkt loslegen, wenn gerade keine Welle läuft
   if (state.autoWave) startNextWave();
@@ -297,17 +342,83 @@ ui.chkAuto.addEventListener("change", () => {
 
 document.querySelectorAll(".speed-btn").forEach(btn => {
   btn.addEventListener("click", () => {
+    if (state.hardcore) return; // im Hardcore fest 3×
     state.speed = Number(btn.dataset.speed);
     document.querySelectorAll(".speed-btn").forEach(b => b.classList.toggle("active", b === btn));
   });
 });
 
-ui.btnRestart.addEventListener("click", () => {
+// Bedienelemente an Normal-/Hardcore-Modus anpassen
+function applyModeUI() {
+  ui.chkAuto.checked = state.autoWave;
+  ui.chkAuto.disabled = state.hardcore;
+  document.querySelectorAll(".speed-btn").forEach(b => {
+    b.classList.toggle("active", Number(b.dataset.speed) === state.speed);
+    b.disabled = state.hardcore;
+  });
+}
+
+// ---- Levelauswahl / Kampagne ----
+function loadLevel(index, hardcore) {
+  state.levelIndex = index;
+  state.levelDef = LEVELS[index];
+  state.hardcore = hardcore;
+  computePathPixels(state.levelDef.waypoints);
+  buildPathTiles(state.levelDef.waypoints);
   resetState();
-  ui.chkAuto.checked = false;
+  applyModeUI();
   ui.overlay.classList.add("hidden");
+  ui.menu.classList.add("hidden");
   updateUI();
+}
+
+function showMenu() {
+  state.gameOver = true; // Simulation anhalten, solange das Menü offen ist
+  ui.overlay.classList.add("hidden");
+  buildMenu();
+  ui.menu.classList.remove("hidden");
+}
+
+function buildMenu() {
+  const p = loadProgress();
+
+  const makeTile = (i, hardcore) => {
+    const lv = LEVELS[i];
+    const done = (hardcore ? p.hardcore : p.normal).includes(i);
+    const open = isUnlocked(i, hardcore, p);
+    const btn = document.createElement("button");
+    btn.className = "level-tile" + (done ? " done" : "") + (open ? "" : " locked") + (hardcore ? " hc" : "");
+    btn.disabled = !open;
+    btn.innerHTML =
+      `<span class="lv-num">${done ? "✔" : open ? i + 1 : "🔒"}</span>` +
+      `<span class="lv-name">${lv.name}</span>` +
+      `<span class="lv-meta">${lv.waves} Wellen · ${hardcore ? "1 Leben" : lv.startLives + " Leben"}</span>` +
+      `<span class="lv-desc">${lv.desc}</span>`;
+    if (open) btn.addEventListener("click", () => loadLevel(i, hardcore));
+    return btn;
+  };
+
+  ui.levelGrid.innerHTML = "";
+  LEVELS.forEach((_, i) => ui.levelGrid.appendChild(makeTile(i, false)));
+
+  ui.levelGridHc.innerHTML = "";
+  if (hardcoreUnlocked(p)) {
+    ui.hcSub.textContent = "1 Leben, Wellen starten automatisch, fest 3× Geschwindigkeit. Viel Glück.";
+    LEVELS.forEach((_, i) => ui.levelGridHc.appendChild(makeTile(i, true)));
+  } else {
+    ui.hcSub.textContent = `🔒 Wird freigeschaltet, wenn alle 10 Kampagnen-Level geschafft sind (${p.normal.length}/10).`;
+  }
+}
+
+ui.btnRestart.addEventListener("click", () => {
+  loadLevel(state.levelIndex, state.hardcore);
 });
+
+ui.btnNext.addEventListener("click", () => {
+  loadLevel(state.levelIndex + 1, state.hardcore);
+});
+
+ui.btnMenu.addEventListener("click", showMenu);
 
 // ---- Update-Logik ----
 function update(dt) {
@@ -359,22 +470,36 @@ function update(dt) {
     state.spawner = null;
     changed = true;
 
-    if (state.wave >= CONFIG.totalWaves) {
+    if (state.wave >= state.totalWaves && state.lives > 0) {
       // Sieg!
       state.gameOver = true;
-      ui.overlayTitle.textContent = "🏆 Gewonnen!";
-      ui.overlayText.textContent = `Du hast alle ${CONFIG.totalWaves} Wellen überstanden – mit ${state.lives} Leben und ${state.kills} Kills!`;
+      const wasHcLocked = !hardcoreUnlocked(loadProgress());
+      markCompleted(state.levelIndex, state.hardcore);
+      const lastLevel = state.levelIndex >= LEVELS.length - 1;
+      ui.overlayTitle.textContent = state.hardcore ? "💀🏆 Hardcore geschafft!" : "🏆 Gewonnen!";
+      let text = `„${state.levelDef.name}" überstanden – alle ${state.totalWaves} Wellen, mit ${state.lives} Leben und ${state.kills} Kills!`;
+      if (lastLevel) {
+        text += state.hardcore
+          ? " Du hast die komplette Hardcore-Kampagne bezwungen – Respekt!"
+          : wasHcLocked && hardcoreUnlocked(loadProgress())
+            ? " Kampagne komplett – der 💀 Hardcore-Modus ist jetzt freigeschaltet!"
+            : " Kampagne komplett!";
+      }
+      ui.overlayText.textContent = text;
+      ui.btnNext.classList.toggle("hidden", lastLevel);
       ui.overlay.classList.remove("hidden");
     } else if (state.autoWave) {
       startNextWave();
     }
   }
 
-  if (state.lives <= 0) {
+  if (state.lives <= 0 && !state.gameOver) {
     state.lives = 0;
     state.gameOver = true;
     ui.overlayTitle.textContent = "💀 Game Over";
-    ui.overlayText.textContent = `Du hast ${state.wave} Welle(n) erreicht und ${state.kills} Gegner besiegt.`;
+    ui.overlayText.textContent = `Du hast ${state.wave} Welle(n) erreicht und ${state.kills} Gegner besiegt.` +
+      (state.hardcore ? " Hardcore kennt keine Gnade – nur 1 Leben." : "");
+    ui.btnNext.classList.add("hidden");
     ui.overlay.classList.remove("hidden");
   }
 
@@ -469,5 +594,12 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
-updateUI();
+// ---- Start: erstes freies Level vorbereiten, Menü zeigen ----
+{
+  const p = loadProgress();
+  let start = LEVELS.findIndex((_, i) => !p.normal.includes(i) && isUnlocked(i, false, p));
+  if (start < 0) start = 0;
+  loadLevel(start, false);
+  showMenu();
+}
 requestAnimationFrame(loop);
