@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a1d24">
+<title>Tower Defense</title>
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="../../manifest.webmanifest">
+<link rel="icon" href="../../icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../../icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+</head>
+<body>
+<div id="wrapper">
+  <header>
+    <h1><a href="../../" id="home-link" title="Zur Spiele-Plattform">🏠</a> ⚔️ Tower Defense</h1>
+    <div id="stats">
+      <span class="stat">💰 <b id="gold">0</b></span>
+      <span class="stat">❤️ <b id="lives">0</b></span>
+      <span class="stat">🌊 Welle <b id="wave">0</b></span>
+      <span class="stat">💀 <b id="kills">0</b></span>
+    </div>
+  </header>
+
+  <main>
+    <canvas id="game" width="960" height="640"></canvas>
+
+    <aside id="sidebar">
+      <h2>Türme bauen</h2>
+      <div id="shop"></div>
+
+      <div id="tools">
+        <button id="tool-upgrade" class="tool-btn">⬆️ Upgraden</button>
+        <button id="tool-sell" class="tool-btn">💰 Verkaufen</button>
+      </div>
+
+      <div id="selection" class="hidden">
+        <h2>Turm</h2>
+        <div id="sel-info"></div>
+        <button id="btn-upgrade"></button>
+        <button id="btn-sell"></button>
+      </div>
+
+      <div id="wave-panel">
+        <button id="btn-start">Welle starten ▶</button>
+        <label id="auto-label"><input type="checkbox" id="chk-auto"> Auto-Modus (Wellen sofort starten)</label>
+        <div id="wave-info"></div>
+      </div>
+
+      <div id="stats-panel">
+        <h2>Statistiken</h2>
+        <div id="stats-content"></div>
+      </div>
+
+      <div id="speed-panel">
+        Geschwindigkeit:
+        <button class="speed-btn active" data-speed="1">1×</button>
+        <button class="speed-btn" data-speed="2">2×</button>
+        <button class="speed-btn" data-speed="3">3×</button>
+      </div>
+    </aside>
+  </main>
+
+  <div id="overlay" class="hidden">
+    <div id="overlay-box">
+      <h2 id="overlay-title"></h2>
+      <p id="overlay-text"></p>
+      <button id="btn-restart">Neu starten</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/towers.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

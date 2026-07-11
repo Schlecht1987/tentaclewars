@@ -239,3 +239,6 @@ body {
   .option-row { flex-direction: column; gap: 4px; }
   .option-row .option-label { width: auto; text-align: center; }
 }
+
+/* Link zurück zur Spiele-Plattform (Hub im Repo-Root) */
+.platform-link { text-decoration: none; display: inline-flex; align-items: center; align-self: center; flex-basis: 100%; justify-content: center; }

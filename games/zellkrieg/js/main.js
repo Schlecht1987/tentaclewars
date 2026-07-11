@@ -29,5 +29,5 @@ requestAnimationFrame(frame);
 // Service Worker nur über http(s) registrieren – beim direkten Öffnen der
 // Datei (file://) läuft das Spiel ohne Offline-Cache einfach weiter.
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-  navigator.serviceWorker.register("./sw.js").catch(() => { /* offline-Cache optional */ });
+  navigator.serviceWorker.register("../../sw.js").catch(() => { /* offline-Cache optional */ });
 }

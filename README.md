@@ -1,25 +1,39 @@
-# Zellkrieg – Tentacle-Wars-Spiel
+# Spielhalle – Spiele-Plattform
 
-Ein browserbasiertes Echtzeit-Strategiespiel im Stil von *Tentacle Wars* / *Galcon*.
-HTML + Canvas + Vanilla-JavaScript ohne externe Bibliotheken und ohne Build-Schritt –
-als **PWA** installierbar (Handy & Desktop), mit **50-Level-Kampagne** und
-**Zufallsspiel-Generator** gegen 1–3 KIs.
+Eine browserbasierte **Spiele-Plattform**: Die Startseite (`index.html`) ist der Hub,
+auf dem man die Spiele auswählt; jedes Spiel liegt eigenständig unter `games/<name>/`.
+Alles ist HTML + Canvas + Vanilla-JavaScript ohne externe Bibliotheken und ohne
+Build-Schritt, für **Handy und Desktop**, gemeinsam als **eine PWA** installierbar
+und offline spielbar.
+
+**Enthaltene Spiele:**
+
+| Spiel | Ordner | Kurzbeschreibung |
+|---|---|---|
+| 🦠 **Zellkrieg** | `games/zellkrieg/` | Echtzeit-Strategie im Stil von *Tentacle Wars* / *Galcon*: 50-Level-Kampagne, Zufallsspiel-Generator gegen 1–3 KIs, Sandbox. Ausführliche Doku weiter unten. |
+| 🏰 **Tower Defense** | `games/towerdefense/` | 24×16-Raster mit festem Gegnerpfad, 5 Turmtypen (u.a. Flächenschaden, Slow, Verstärker-Aura), 30 Wellen mit Bossen, Upgrades/Verkauf, Auto-Wellen und Spieltempo 1–3×. |
 
 **Online-Version (Claude-Artifact):** https://claude.ai/code/artifact/b7a591a2-4516-4e65-94ea-6ee11b5875fa
 
 ## Spielen
 
 - **Lokal (empfohlen):** im Projektordner einen statischen Server starten, z.B.
-  `npx serve .`, und `http://localhost:3000` öffnen. So funktionieren auch
-  Offline-Cache (Service Worker) und Spielstand-Speicherung dauerhaft.
+  `npx serve .`, und `http://localhost:3000` öffnen – vom Hub aus ein Spiel wählen.
+  So funktionieren auch Offline-Cache (Service Worker) und Spielstand-Speicherung dauerhaft.
 - **Schnellstart:** `index.html` per Doppelklick öffnen geht ebenfalls
   (ohne Offline-Cache; der Spielstand liegt dann unter einer anderen Origin).
-  *Hinweis: Die frühere Einzeldatei `zellkrieg.html` wurde in `index.html` +
-  `js/`-Dateien aufgeteilt.*
 - **Als App aufs Handy:** die gehostete Version (https, z.B. GitHub Pages) im
   mobilen Browser öffnen und **„Zum Startbildschirm hinzufügen"** wählen
   (Android: Menü ⋮ → „App installieren"; iOS: Teilen-Symbol → „Zum Home-Bildschirm").
-  Das Spiel startet dann im Vollbild-Querformat und läuft auch offline.
+  Die Plattform startet dann im Vollbild und läuft auch offline.
+
+---
+
+# Zellkrieg – Tentacle-Wars-Spiel
+
+Ein Echtzeit-Strategiespiel im Stil von *Tentacle Wars* / *Galcon* mit
+**50-Level-Kampagne** und **Zufallsspiel-Generator** gegen 1–3 KIs
+(`games/zellkrieg/`).
 
 ## Spielidee
 

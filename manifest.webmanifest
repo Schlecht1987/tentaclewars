@@ -1,7 +1,7 @@
 {
-  "name": "Zellkrieg",
-  "short_name": "Zellkrieg",
-  "description": "Echtzeit-Strategie im Stil von Tentacle Wars: Tentakel ausfahren, Zellen erobern, 50 Kampagnen-Level und Zufallskarten gegen 1-3 KIs.",
+  "name": "Spielhalle",
+  "short_name": "Spielhalle",
+  "description": "Spiele-Plattform: Zellkrieg (Echtzeit-Strategie im Tentacle-Wars-Stil) und Tower Defense – installierbar, offline spielbar, für Handy und Desktop.",
   "lang": "de",
   "start_url": "./",
   "scope": "./",

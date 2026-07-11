@@ -1,0 +1,160 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: #1a1d24;
+  color: #e8e8e8;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+#wrapper { padding: 16px; }
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+h1 { font-size: 1.4rem; }
+
+#stats { display: flex; gap: 18px; font-size: 1.1rem; }
+.stat b { min-width: 2ch; display: inline-block; }
+
+main { display: flex; gap: 16px; align-items: flex-start; }
+
+canvas {
+  background: #2a3040;
+  border-radius: 8px;
+  cursor: crosshair;
+  display: block;
+  flex: 0 0 auto; /* nie stauchen – sonst verzerrt das Bild */
+}
+
+#sidebar {
+  flex: 0 0 230px;
+  max-height: 640px;      /* so hoch wie der Canvas … */
+  overflow-y: auto;       /* … und scrollt intern statt die Seite zu strecken */
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-right: 4px;
+}
+
+#sidebar h2 { font-size: 1rem; color: #aab; margin-bottom: 6px; }
+
+#shop { display: flex; flex-direction: column; gap: 8px; }
+
+.shop-item {
+  background: #262b38;
+  border: 2px solid #3a4155;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+.shop-item:hover { border-color: #6a7bb0; }
+.shop-item.selected { border-color: #ffd75e; background: #2f3547; }
+.shop-item.unaffordable { opacity: .45; cursor: not-allowed; }
+
+.shop-item .name { font-weight: 600; }
+.shop-item .cost { float: right; color: #ffd75e; }
+.shop-item .desc { font-size: .78rem; color: #99a; margin-top: 3px; }
+
+#tools { display: flex; gap: 8px; }
+.tool-btn { flex: 1; font-size: .82rem; border: 2px solid transparent; }
+.tool-btn.active { border-color: #ffd75e; background: #2f3547; }
+
+#selection {
+  background: #262b38;
+  border-radius: 8px;
+  padding: 10px;
+}
+#sel-info { font-size: .85rem; line-height: 1.5; margin-bottom: 8px; }
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #3a4155;
+  color: #e8e8e8;
+}
+button:hover { background: #4a5270; }
+
+#btn-upgrade { background: #2e6b46; width: 100%; margin-bottom: 6px; }
+#btn-upgrade:hover { background: #38855a; }
+#btn-upgrade:disabled { background: #333; color: #777; cursor: not-allowed; }
+#btn-sell { background: #7a3a3a; width: 100%; }
+#btn-sell:hover { background: #964747; }
+
+#btn-start {
+  width: 100%;
+  background: #2e6b46;
+  font-weight: 600;
+  padding: 12px;
+}
+#btn-start:hover { background: #38855a; }
+#btn-start:disabled { background: #333; color: #777; cursor: not-allowed; }
+
+#wave-info { font-size: .8rem; color: #99a; margin-top: 6px; }
+
+#auto-label {
+  display: block;
+  margin-top: 8px;
+  font-size: .82rem;
+  color: #aab;
+  cursor: pointer;
+  user-select: none;
+}
+#auto-label input { vertical-align: -2px; margin-right: 4px; }
+
+#stats-panel {
+  background: #262b38;
+  border-radius: 8px;
+  padding: 10px;
+}
+#stats-content { font-size: .8rem; line-height: 1.55; color: #ccd; }
+#stats-content .sec { color: #889; margin-top: 6px; font-weight: 600; }
+#stats-content .val { color: #ffd75e; }
+
+#speed-panel { font-size: .85rem; color: #aab; }
+.speed-btn { padding: 4px 10px; margin-left: 4px; }
+.speed-btn.active { background: #ffd75e; color: #222; }
+
+.hidden { display: none !important; }
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#overlay-box {
+  background: #262b38;
+  padding: 32px 48px;
+  border-radius: 12px;
+  text-align: center;
+}
+#overlay-box h2 { margin-bottom: 10px; font-size: 1.6rem; }
+#overlay-box p { margin-bottom: 18px; color: #aab; }
+#btn-restart { background: #2e6b46; padding: 10px 24px; }
+
+#home-link { text-decoration: none; margin-right: 4px; }
+
+/* Mobile: Sidebar unter das (mitskalierende) Spielfeld stapeln */
+@media (max-width: 1240px) {
+  main { flex-direction: column; align-items: stretch; }
+  canvas { width: 100%; max-width: 960px; height: auto; }
+  #sidebar { flex: 1 1 auto; max-height: none; width: 100%; max-width: 960px; }
+  header { flex-wrap: wrap; gap: 6px; }
+  #stats { flex-wrap: wrap; gap: 10px; font-size: 1rem; }
+}
