@@ -479,6 +479,25 @@ ui.btnNext.addEventListener("click", () => {
 ui.btnMenu.addEventListener("click", showMenu);
 
 // ---- Dev-Panel: Balance-Stellschrauben live editieren ----
+// Geänderte Werte werden im localStorage gemerkt und beim Start wieder geladen.
+const TUNING_KEY = "towerdefense.tuning.v1";
+
+function loadTuning() {
+  try {
+    const t = JSON.parse(localStorage.getItem(TUNING_KEY));
+    if (!t || t.v !== 1) return;
+    for (const key of Object.keys(TUNING)) {
+      if (typeof t.values?.[key] === "number" && !isNaN(t.values[key])) TUNING[key] = t.values[key];
+    }
+  } catch (e) { /* privater Modus o. Ä. */ }
+}
+
+function saveTuning() {
+  try {
+    localStorage.setItem(TUNING_KEY, JSON.stringify({ v: 1, values: { ...TUNING } }));
+  } catch (e) { /* ignorieren */ }
+}
+
 function buildDevPanel() {
   ui.devPanel.innerHTML = "";
   for (const key of Object.keys(TUNING)) {
@@ -493,7 +512,7 @@ function buildDevPanel() {
     inp.value = TUNING[key];
     inp.addEventListener("change", () => {
       const v = parseFloat(inp.value);
-      if (!isNaN(v)) { TUNING[key] = v; updateUI(); }
+      if (!isNaN(v)) { TUNING[key] = v; saveTuning(); updateUI(); }
     });
     row.append(name, inp);
     ui.devPanel.appendChild(row);
@@ -512,6 +531,7 @@ function buildDevPanel() {
   reset.title = "Alle Stellschrauben auf die Standardwerte zurücksetzen.";
   reset.addEventListener("click", () => {
     Object.assign(TUNING, TUNING_DEFAULTS);
+    try { localStorage.removeItem(TUNING_KEY); } catch (e) { /* ignorieren */ }
     buildDevPanel();
     updateUI();
   });
@@ -521,7 +541,7 @@ function buildDevPanel() {
 
   const hint = document.createElement("div");
   hint.className = "dev-hint";
-  hint.textContent = "Änderungen wirken sofort – Gegner-Werte ab der nächsten Welle, Turmschaden ab dem nächsten Schuss. Maus über einen Regler halten für die Erklärung.";
+  hint.textContent = "Änderungen wirken sofort (Gegner ab der nächsten Welle, Turmschaden ab dem nächsten Schuss) und bleiben gespeichert. Maus über einen Regler halten für die Erklärung.";
   ui.devPanel.appendChild(hint);
 }
 
@@ -708,6 +728,7 @@ function loop(now) {
 
 // ---- Start: erstes freies Level vorbereiten, Menü zeigen ----
 {
+  loadTuning(); // gespeicherte Balance-Regler wiederherstellen (vor dem ersten resetState)
   const p = loadProgress();
   let start = LEVELS.findIndex((_, i) => !p.normal.includes(i) && isUnlocked(i, false, p));
   if (start < 0) start = 0;

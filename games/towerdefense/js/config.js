@@ -16,7 +16,7 @@ const TUNING = {
   waveBonusBase: 20,  // Gold-Bonus pro geschaffter Welle (+ Welle * 3)
   towerDmgMul: 1,     // globaler Multiplikator auf allen Turmschaden
   startGoldBonus: 0,  // zusätzliches Startgold (gilt ab Levelstart/Neustart)
-  stunImmunity: 2,    // Sekunden Betäubungs-Immunität nach einer Betäubung
+  stunImmunity: 5,    // Sekunden Betäubungs-Immunität nach einer Betäubung
 };
 const TUNING_DEFAULTS = { ...TUNING };
 
