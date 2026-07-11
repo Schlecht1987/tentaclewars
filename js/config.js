@@ -7,15 +7,16 @@
 // Neben dem Namen (HUD/Menü) angezeigte Versionsnummer – bei jedem Release
 // zusammen mit der CACHE-Version in sw.js hochzählen, damit Nutzer (und wir
 // bei Fehlerberichten) erkennen können, ob ihr Client schon aktualisiert hat.
-const APP_VERSION = "21";
+const APP_VERSION = "22";
 
 const CONFIG = {
   // --- Ansicht ---
-  mobileZoom: 1.3,   // zusätzlicher Zoomfaktor auf Touch-Geräten (coarsePointer):
+  mobileZoom: 2,     // zusätzlicher Zoomfaktor auf Touch-Geräten (coarsePointer):
                       // Spielfeld wird über die reine "alles reinpassen"-Größe
                       // hinaus vergrößert (Ränder werden leicht angeschnitten),
                       // damit Zellen auf kleinen Handy-Bildschirmen größer wirken.
-  mobileMaxCrop: 40,  // Obergrenze (Welt-Pixel pro Seite), wie viel Spielfeldrand
+  mobileMaxCrop: 300, // TEST: Deckelung fast aufgehoben, damit mobileZoom 2 sichtbar wird.
+                      // Obergrenze (Welt-Pixel pro Seite), wie viel Spielfeldrand
                       // der mobileZoom höchstens abschneiden darf. Zusammen mit
                       // dem mapgen-margin garantiert das, dass keine Zelle in die
                       // Wisch-Gesten-Zone am Bildschirmrand rutscht.
