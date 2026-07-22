@@ -8,7 +8,7 @@
    "Update on reload" / "Bypass for network" aktivieren.
    ====================================================================== */
 
-const CACHE = "spielhalle-v32";
+const CACHE = "spielhalle-v33";
 
 const ASSETS = [
   "./",
@@ -34,6 +34,13 @@ const ASSETS = [
   "./games/towerdefense/js/enemies.js",
   "./games/towerdefense/js/towers.js",
   "./games/towerdefense/js/game.js",
+  "./games/kristallkrieg/",
+  "./games/kristallkrieg/index.html",
+  "./games/kristallkrieg/style.css",
+  "./games/kristallkrieg/js/config.js",
+  "./games/kristallkrieg/js/units.js",
+  "./games/kristallkrieg/js/ai.js",
+  "./games/kristallkrieg/js/game.js",
   "./icons/icon.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

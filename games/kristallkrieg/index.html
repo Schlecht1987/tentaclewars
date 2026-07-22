@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#101423">
+<title>Kristallkrieg</title>
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="../../manifest.webmanifest">
+<link rel="icon" href="../../icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../../icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+</head>
+<body>
+<div id="wrapper">
+  <header>
+    <h1><a href="../../index.html" title="Zur Spiele-Plattform">🏠</a> 💎 Kristallkrieg <span id="diff-name"></span></h1>
+    <div id="stats">
+      <span class="stat">💎 <b id="crystals">0</b> <small id="income"></small></span>
+      <span class="stat you">🏰 <b id="hp-player">0</b></span>
+      <span class="stat foe">🏯 <b id="hp-enemy">0</b></span>
+      <span id="speed-panel">
+        <button class="speed-btn active" data-speed="1">1×</button>
+        <button class="speed-btn" data-speed="2">2×</button>
+      </span>
+    </div>
+  </header>
+
+  <main>
+    <canvas id="game" width="960" height="540"></canvas>
+
+    <div id="controls">
+      <div id="shop"></div>
+      <button id="btn-collector"></button>
+      <p id="hint"></p>
+    </div>
+  </main>
+
+  <div id="overlay" class="hidden">
+    <div class="box">
+      <h2 id="overlay-title"></h2>
+      <p id="overlay-text"></p>
+      <button id="btn-restart">Nochmal spielen</button>
+      <button id="btn-menu">Hauptmenü</button>
+    </div>
+  </div>
+
+  <div id="menu" class="hidden">
+    <div class="box">
+      <h2>💎 Kristallkrieg</h2>
+      <p class="menu-sub">Sammle Kristalle, stelle deine Armee auf drei Bahnen auf und
+      zerstöre die gegnerische Festung. ⚔️ schlägt 🏹, 🏹 schlägt 🐴, 🐴 schlägt ⚔️ –
+      Wachtürme in der Mitte kämpfen für ihren Eroberer.</p>
+      <div id="diff-grid"></div>
+      <p class="menu-sub"><a href="../../index.html">← Zur Spiele-Plattform</a></p>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/units.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

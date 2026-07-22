@@ -1,0 +1,150 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: radial-gradient(ellipse at 50% -20%, #182142 0%, #101423 60%);
+  color: #e8eef8;
+  min-height: 100vh;
+  padding: 10px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+}
+
+#wrapper { max-width: 1000px; margin: 0 auto; }
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+header h1 { font-size: 1.2rem; }
+header h1 a { text-decoration: none; }
+#diff-name { color: #8a97ad; font-size: .85rem; font-weight: normal; }
+
+#stats { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.stat { font-size: .95rem; }
+.stat small { color: #8a97ad; }
+.stat.you b { color: #5ad0c0; }
+.stat.foe b { color: #ff7a6b; }
+
+#speed-panel { display: inline-flex; gap: 4px; }
+.speed-btn {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.15);
+  color: #e8eef8;
+  border-radius: 6px;
+  padding: 2px 10px;
+  cursor: pointer;
+  font-size: .85rem;
+}
+.speed-btn.active { border-color: #5ad0c0; color: #5ad0c0; }
+
+canvas#game {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #0c101d;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 10px;
+  touch-action: manipulation;
+}
+
+#controls { margin-top: 10px; }
+
+#shop {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 10px;
+  color: #e8eef8;
+  padding: 8px 4px;
+  cursor: pointer;
+  transition: border-color .1s, background .1s;
+}
+.card:hover { border-color: rgba(90,208,192,.6); }
+.card.selected { border-color: #5ad0c0; background: rgba(90,208,192,.12); }
+.card.disabled { opacity: .45; }
+.card-icon { font-size: 1.5rem; }
+.card-name { font-size: .72rem; color: #b7c2d4; }
+.card-cost { font-size: .78rem; color: #9fd6ff; }
+
+#btn-collector {
+  width: 100%;
+  margin-top: 8px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 10px;
+  color: #e8eef8;
+  padding: 9px;
+  cursor: pointer;
+  font-size: .9rem;
+}
+#btn-collector:hover { border-color: rgba(90,208,192,.6); }
+#btn-collector.disabled { opacity: .45; }
+
+#hint {
+  margin-top: 8px;
+  color: #8a97ad;
+  font-size: .82rem;
+  min-height: 2.2em;
+}
+
+/* Overlay + Menü */
+#overlay, #menu {
+  position: fixed;
+  inset: 0;
+  background: rgba(6,9,16,.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 10;
+}
+.hidden { display: none !important; }
+.box {
+  background: #131a2c;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 14px;
+  padding: 26px;
+  max-width: 460px;
+  width: 100%;
+  text-align: center;
+}
+.box h2 { margin-bottom: 10px; }
+.box p { color: #99a7bd; font-size: .9rem; line-height: 1.5; margin-bottom: 14px; }
+.box button {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  background: rgba(90,208,192,.12);
+  border: 1px solid rgba(90,208,192,.5);
+  border-radius: 10px;
+  color: #e8eef8;
+  padding: 10px;
+  font-size: .95rem;
+  cursor: pointer;
+}
+.box button:hover { background: rgba(90,208,192,.2); }
+.menu-sub a { color: #5ad0c0; }
+
+#diff-grid { display: grid; gap: 8px; }
+.diff-tile { text-align: center; }
+.diff-tile b { display: block; font-size: 1.05rem; }
+.diff-tile span { color: #8a97ad; font-size: .78rem; }
+
+@media (max-width: 640px) {
+  header h1 { font-size: 1rem; }
+  .card-name { display: none; }
+  #shop { gap: 6px; }
+}

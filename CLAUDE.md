@@ -14,7 +14,7 @@ This repo is a **games platform** ("Spielhalle"), not a single game. The root `i
 - **`manifest.webmanifest`** — one PWA manifest for the whole platform (`start_url`/`scope` = repo root). Game pages link to it with `../../manifest.webmanifest`.
 - **`sw.js`** — one service worker, cache-first, precaches the hub AND all game files. **When adding/renaming game files, add them to `ASSETS`; bump `CACHE` every release.** Registered from the hub and from game pages via `../../sw.js` (scope = root either way).
 - **`icons/`**, `tools/gen-icons.mjs` — shared platform icons (PNGs committed; only rerun the tool when the design changes).
-- **`games/zellkrieg/`**, **`games/towerdefense/`** — the games (see below).
+- **`games/zellkrieg/`**, **`games/towerdefense/`**, **`games/kristallkrieg/`** — the games (see below).
 - Each game page links back to the hub (`href="../../"`).
 
 ### Running / testing
@@ -123,3 +123,28 @@ Script order: `js/config.js → js/enemies.js → js/towers.js → js/game.js` (
 - Level `waypoints` segments must be strictly horizontal or vertical (the `buildPathTiles` walk assumes it); start/end may lie one tile off-grid (col −1 / 24) or on-grid (e.g. the spiral ends mid-map).
 - Hardcore is only reachable via the level-select (grid hidden behind `hardcoreUnlocked`); in hardcore the auto-wave checkbox and speed buttons are disabled and their listeners no-op.
 - Persistence: `towerdefense.progress.v1` — `{ v: 1, normal: [levelIndices], hardcore: [levelIndices] }` (completed levels per mode); `towerdefense.tuning.v1` — `{ v: 1, values: {…} }` (dev-panel TUNING overrides).
+
+---
+
+## Game: Kristallkrieg (`games/kristallkrieg/`)
+
+Lane-based real-time strategy skirmish vs one AI (3 difficulties): collect crystals, spawn units onto one of **3 lanes**, capture the mid-lane watchtowers, destroy the enemy fortress (win) before yours falls (lose). Counter triangle: sword > archer > lancer > sword (2× damage). German UI; canvas playfield + DOM unit-card bar below it; mobile-first tap controls (tap card, tap lane).
+
+### File map (relative to `games/kristallkrieg/`)
+
+Script order: `js/config.js → js/units.js → js/ai.js → js/game.js` (classic script tags, shared globals, no modules).
+
+- **`index.html`** — header (🏠 hub link, 💎 crystals + income, both base HPs, speed 1×/2×), `<canvas id="game">` (960×540, CSS-scaled), `#controls` (`#shop` unit cards, `#btn-collector`, `#hint`), `#overlay` (win/lose), `#menu` (difficulty tiles `#diff-grid` with win counts).
+- **`style.css`** — dark theme matching the platform, card grid (5 columns; names hidden ≤640px), overlay/menu boxes.
+- **`js/config.js`** — `CONFIG` (field 960×540, `laneYs` [120,270,420], spawn/base-edge x, base HP 900 + base-gun stats, economy: 3💎/s base income, collectors +2/s each, max 4, cost 60+30·owned; watchtower capture/range/income numbers, `unitSpacing`, `maxUnitsPerSide`), `UNIT_TYPES` (sword/archer/lancer/healer/siege: cost/hp/dmg/atkInterval/range/speed + `counters` multiplier map, healer `heal`, siege `vsBase` 4 / `vsUnit` 0.35), `UNIT_ORDER`, `DIFFICULTIES` (leicht/mittel/schwer: `interval`, `incomeMul`, `smart`, `ecoTarget`).
+- **`js/units.js`** — `makeUnit`/`unitY` (per-unit `yOff` jitter), `counterMult`, `findTarget` (nearest enemy in same lane, ahead), `isBlocked` (friendly spacing queue), `updateUnit` (healer heals allies in range; attack unit in range, else base edge in range, else walk), `addHitEffect`, `updateBaseGuns` (both fortresses shoot the nearest attacker: 12 dmg / 0.7 s, range 180 — anti-rush), `makeTower`/`updateTower` (capture by sole presence: charge 100 at 22/s·units (max 3 count), foreign charge drains first, owned tower must be neutralized before recapture; owned towers shoot 9 dmg / 0.8 s, range 150).
+- **`js/ai.js`** — `aiThink(dt, state)`: tick every `interval`·(0.7–1.3); builds collectors up to `ecoTarget` while not threatened, else picks the lane with the biggest player-vs-AI cost deficit (probability `smart`, otherwise the emptiest lane) and spawns the counter to the player's dominant type (probability `smart`, else random pool); occasionally siege/healer when rich. Uses `Math.random()` — no determinism requirement here.
+- **`js/game.js`** — progress API (`kristallkrieg.progress.v1` = `{ v:1, wins:{leicht,mittel,schwer} }`, try/catch-wrapped), `state` + `resetState(diffKey)`, `spawnUnit` (both sides use it; capped at `maxUnitsPerSide`), `update(dt)` (income incl. +1💎/s per owned tower, `aiThink`, units → towers → base guns, win/lose check), rendering (lanes with hover highlight, bases with HP bar, towers with capture arc, units with emoji + HP bar, hit effects), shop/HUD wiring, canvas tap→lane spawning (`laneAt`, radius 80), keys 1–5 select cards / Escape deselects, speed 1×/2×, menu/overlay, `loop()` (dt clamp 50 ms, speed runs `update` 1–2×), boot + SW registration.
+
+### Rules / invariants
+
+- Units never change lanes; targeting, blocking and healing are lane-local (base guns and towers target across lanes by distance).
+- `state.gameOver === true` whenever menu or overlay is open — the sim only runs while it's false.
+- Counter damage is applied by the **attacker** (`counterMult(attacker, target)`); siege multipliers stack on top (`vsUnit`/`vsBase`).
+- Towers are never damaged, only captured/neutralized via presence; contested radius (both sides present) freezes progress.
+- Economy knobs live only in `CONFIG`/`DIFFICULTIES`; the AI obeys the same collector prices and unit costs as the player (income scaled by `incomeMul`).
