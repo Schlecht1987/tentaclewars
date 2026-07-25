@@ -286,10 +286,22 @@ function updateStats() {
 }
 
 // ---- Eingabe ----
+// Muss mit der Portrait-Media-Query in style.css übereinstimmen (dort wird
+// der Canvas um 90° gedreht; hier rechnen wir die Tap-Position zurück).
+const portraitMq = window.matchMedia("(orientation: portrait) and (max-width: 700px)");
+
 function tileFromEvent(ev) {
   const rect = canvas.getBoundingClientRect();
-  const x = (ev.clientX - rect.left) * (canvas.width / rect.width);
-  const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
+  let x, y;
+  if (portraitMq.matches) {
+    // Gedrehte Ansicht: rect ist die Bounding-Box des rotierten Canvas
+    // (rect.width entspricht der 640er-Seite, rect.height der 960er-Seite).
+    x = (ev.clientY - rect.top) * (canvas.width / rect.height);
+    y = (rect.right - ev.clientX) * (canvas.height / rect.width);
+  } else {
+    x = (ev.clientX - rect.left) * (canvas.width / rect.width);
+    y = (ev.clientY - rect.top) * (canvas.height / rect.height);
+  }
   return {
     col: Math.floor(x / CONFIG.tileSize),
     row: Math.floor(y / CONFIG.tileSize),

@@ -102,7 +102,7 @@ All access is try/catch-wrapped (private mode). file:// and localhost are separa
 
 ## Game: Tower Defense (`games/towerdefense/`)
 
-Classic grid tower defense with a **10-level campaign**: each level has its own path on the 24×16 tile grid and its own difficulty (waves 12→30, startGold/startLives per level, enemy-HP multiplier `hpMul` 0.8→1.4; later maps have shorter/straighter paths). Levels unlock sequentially; finishing all 10 unlocks **Hardcore mode** (same levels, 1 life, auto-wave forced on, speed locked to 3×), with its own sequential unlock chain. German UI, DOM sidebar + canvas playfield. Mobile: sidebar stacks under the scaling canvas below 1240px width (media query in `style.css`); taps work via click events.
+Classic grid tower defense with a **10-level campaign**: each level has its own path on the 24×16 tile grid and its own difficulty (waves 12→30, startGold/startLives per level, enemy-HP multiplier `hpMul` 0.8→1.4; later maps have shorter/straighter paths). Levels unlock sequentially; finishing all 10 unlocks **Hardcore mode** (same levels, 1 life, auto-wave forced on, speed locked to 3×), with its own sequential unlock chain. German UI, DOM sidebar + canvas playfield. Mobile: sidebar stacks under the scaling canvas below 1240px width (media query in `style.css`); taps work via click events. Narrow portrait (≤700px, `orientation: portrait`): the canvas (inside the `#canvas-wrap` wrapper that reserves the rotated footprint) is rotated 90° via CSS transform so the long 960px side uses the screen height, and controls shrink; `tileFromEvent()` in `js/game.js` inverts the rotation for tap coordinates via a `matchMedia` query that MUST match the CSS media query.
 
 ### File map (relative to `games/towerdefense/`)
 

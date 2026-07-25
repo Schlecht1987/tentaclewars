@@ -25,6 +25,8 @@ h1 { font-size: 1.4rem; }
 
 main { display: flex; gap: 16px; align-items: flex-start; }
 
+#canvas-wrap { flex: 0 0 auto; }
+
 canvas {
   background: #2a3040;
   border-radius: 8px;
@@ -267,9 +269,46 @@ button:hover { background: #4a5270; }
 /* Mobile: Sidebar unter das (mitskalierende) Spielfeld stapeln */
 @media (max-width: 1240px) {
   main { flex-direction: column; align-items: stretch; }
+  #canvas-wrap { width: 100%; max-width: 960px; }
   canvas { width: 100%; max-width: 960px; height: auto; }
   #sidebar { flex: 1 1 auto; max-height: none; width: 100%; max-width: 960px; }
   #shop { grid-template-columns: repeat(6, 1fr); }
   header { flex-wrap: wrap; gap: 6px; }
   #stats { flex-wrap: wrap; gap: 10px; font-size: 1rem; }
+}
+
+/* Schmales Portrait (Handy hochkant): Spielfeld um 90° gedreht anzeigen,
+   damit die lange 960er-Seite die Bildschirmhöhe nutzt statt der schmalen
+   Breite – das Feld wird dadurch ~2,25× größer. Die Klick-/Tap-Koordinaten
+   werden in game.js (tileFromEvent) passend zurückgerechnet; die Media-Query
+   dort MUSS mit dieser hier übereinstimmen. */
+@media (orientation: portrait) and (max-width: 700px) {
+  #wrapper { padding: 8px; width: 100%; }
+
+  /* Wrap reserviert den Platz des gedrehten Canvas (Breite×1.5 hoch) */
+  #canvas-wrap {
+    width: 100%;
+    height: calc((100vw - 16px) * 1.5);
+    overflow: hidden;
+  }
+  canvas {
+    width: calc((100vw - 16px) * 1.5);
+    height: calc(100vw - 16px);
+    max-width: none;
+    transform: rotate(90deg) translateY(-100%);
+    transform-origin: top left;
+  }
+
+  /* Kompaktere Bedienelemente, damit alles ohne Zoomen erreichbar bleibt */
+  h1 { font-size: 1.1rem; }
+  #stats { font-size: .9rem; gap: 8px; }
+  main { gap: 10px; }
+  #sidebar { gap: 8px; }
+  .shop-item { padding: 5px 2px 4px; }
+  .shop-item .icon { font-size: 1.2rem; }
+  .shop-item .cost { font-size: .68rem; }
+  button { padding: 6px 8px; font-size: .85rem; }
+  #btn-start { padding: 9px; }
+  #auto-label, #wave-info { font-size: .75rem; }
+  #speed-panel { font-size: .8rem; }
 }

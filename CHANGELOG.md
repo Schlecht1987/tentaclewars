@@ -6,6 +6,9 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/en/1
 
 ## [Unreleased]
 
+### Changed
+- **Tower Defense: Portrait-Ansicht auf dem Handy optimiert.** Auf schmalen Hochkant-Bildschirmen (≤700 px) wird das Spielfeld jetzt um 90° gedreht dargestellt, sodass die lange 960er-Seite die Bildschirmhöhe nutzt – das Feld ist damit ~2,25× größer und Zoomen ist nicht mehr nötig. Die Tap-Koordinaten werden in `tileFromEvent()` (`js/game.js`) passend zurückgerechnet (Media-Query muss mit der in `style.css` übereinstimmen). Zusätzlich sind die Bedienelemente im Portrait kompakter (kleinere Shop-Kacheln, Buttons und Schriften). Neuer Wrapper `#canvas-wrap` um den Canvas reserviert den Platz der gedrehten Fläche. `CACHE` auf `spielhalle-v34`.
+
 ### Added
 - **Kristallkrieg: neues drittes Spiel der Plattform** (`games/kristallkrieg/`) – Lane-Echtzeitstrategie gegen eine KI: Kristalle sammeln (Grundeinkommen + bis zu 4 immer teurere ⛏️ Sammler), Einheiten auf eine von **3 Bahnen** stellen und die gegnerische Festung (900 HP) zerstören, bevor die eigene fällt. 5 Einheitentypen mit **Konter-Dreieck** (⚔️ Schwertkämpfer > 🏹 Bogenschütze > 🐴 Lanzenreiter > ⚔️, jeweils ×2 Schaden) plus 💚 Heiler und 🪨 Katapult (×4 gegen Gebäude, schwach gegen Einheiten). In jeder Bahnmitte ein neutraler 🗼 **Wachturm**, der per Präsenz erobert wird – er schießt dann für seinen Besitzer und bringt +1 💎/s. Beide Festungen verteidigen sich mit einer eigenen Kanone (bremst Rushes). KI mit 3 Schwierigkeitsgraden (Leicht/Mittel/Schwer: Entscheidungstempo, Einkommen, Konter-Treffsicherheit, Wirtschaftsaufbau); Siege werden pro Schwierigkeit gezählt (`kristallkrieg.progress.v1`). Steuerung: Karte antippen, Bahn antippen (mobil & Desktop; Tasten 1–5, Esc). Tempo 1×/2×. Hub-Karte ergänzt, alle Dateien im Service-Worker-Precache (`CACHE` auf `spielhalle-v33`).
 
