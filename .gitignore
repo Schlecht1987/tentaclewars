@@ -1,3 +1,14 @@
 # Vom Debug-Export (js/debug.js) heruntergeladene Zustands-Dateien
 zellkrieg-debug-*.txt
 zellkrieg-timeline-*.json
+
+# --- Android (Build-Artefakte und lokale Konfiguration) ---
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.iml
+
+# Claude Code lokale Einstellungen
+.claude/settings.local.json

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Levelauswahl-Menü: liegt als Overlay über dem Spiel -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/menuOverlay"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5141821"
+    android:fillViewport="true"
+    android:visibility="gone">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="⚔️ Kampagne"
+            android:textColor="#E8ECF4"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="10 Level – von der grünen Wiese bis zum letzten Wall."
+            android:textColor="#8A93A8"
+            android:textSize="12sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal">
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnResume"
+                style="@style/GameButton"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_btn_primary"
+                android:textSize="13sp"
+                android:text="▶ Weiter spielen" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnRestartLevel"
+                style="@style/GameButton"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_btn_secondary"
+                android:textSize="13sp"
+                android:text="🔄 Level neu starten" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/levelList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical" />
+    </LinearLayout>
+</ScrollView>

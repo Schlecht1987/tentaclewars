@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#141821">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Status oben -->
+        <TextView
+            android:id="@+id/txtStats"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#1B2130"
+            android:padding="7dp"
+            android:gravity="center"
+            android:textColor="#E8ECF4"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:text="💰 100   ❤️ 20   🌊 0/30   ☠️ 0" />
+
+        <!-- Spielfeld -->
+        <de.schlecht.towerdefense.GameView
+            android:id="@+id/gameView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Panel unten -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_panel"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="4dp">
+
+            <!-- Auswahl-Info -->
+            <LinearLayout
+                android:id="@+id/selectionPanel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="6dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/txtSelection"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:textColor="#E8ECF4"
+                    android:textSize="11sp" />
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnUpgrade"
+                    style="@style/GameButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_btn_secondary"
+                    android:textSize="12sp"
+                    android:text="Upgrade" />
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnSell"
+                    style="@style/GameButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_btn_danger"
+                    android:textSize="12sp"
+                    android:text="Verkaufen" />
+            </LinearLayout>
+
+            <!-- Shop: horizontal scrollbar -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/shop"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+            <!-- Werkzeuge: Antipp-Upgrade/-Verkauf + Menü + Balance -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnToolUpgrade"
+                    style="@style/GameButton"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_btn_toggle"
+                    android:textSize="12sp"
+                    android:text="⬆️ Upgraden" />
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnToolSell"
+                    style="@style/GameButton"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_btn_toggle"
+                    android:textSize="12sp"
+                    android:text="💰 Verkaufen" />
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnMenu"
+                    style="@style/GameButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:minWidth="46dp"
+                    android:background="@drawable/bg_btn_secondary"
+                    android:textSize="14sp"
+                    android:text="☰" />
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnBalance"
+                    style="@style/GameButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:minWidth="46dp"
+                    android:background="@drawable/bg_btn_secondary"
+                    android:textSize="14sp"
+                    android:text="🛠" />
+            </LinearLayout>
+
+            <!-- Steuerung -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnStart"
+                    style="@style/GameButton"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_btn_primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:text="Welle 1/12 starten ▶" />
+
+                <CheckBox
+                    android:id="@+id/chkAuto"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:buttonTint="#FFD75E"
+                    android:textColor="#E8ECF4"
+                    android:textSize="12sp"
+                    android:text="Auto" />
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnSpeed"
+                    style="@style/GameButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:minWidth="52dp"
+                    android:background="@drawable/bg_btn_secondary"
+                    android:textSize="13sp"
+                    android:text="1×" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/txtWaveInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:gravity="center"
+                android:textColor="#8A93A8"
+                android:textSize="10sp"
+                android:text="Baue Türme und starte die erste Welle!" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <include layout="@layout/menu_overlay" />
+</FrameLayout>

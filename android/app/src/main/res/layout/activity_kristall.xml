@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#141821">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- HUD oben -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="#1B2130"
+            android:paddingLeft="10dp"
+            android:paddingRight="10dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp">
+
+            <TextView
+                android:id="@+id/kkCrystals"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#7FDBEE"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:text="💎 60  +3/s" />
+
+            <TextView
+                android:id="@+id/kkHint"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:paddingLeft="8dp"
+                android:paddingRight="8dp"
+                android:textColor="#8A93A8"
+                android:textSize="10sp"
+                android:maxLines="2"
+                android:text="Einheit unten wählen, dann auf eine Bahn tippen." />
+
+            <TextView
+                android:id="@+id/kkHp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#E8ECF4"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:text="🛡 900   ⚔ 900" />
+        </LinearLayout>
+
+        <!-- Spielfeld -->
+        <de.schlecht.towerdefense.kristall.KristallView
+            android:id="@+id/kkView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Shop unten -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_panel"
+            android:paddingLeft="6dp"
+            android:paddingRight="6dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="2dp">
+
+            <HorizontalScrollView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/kkShop"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/kkSpeed"
+                style="@style/GameButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:minWidth="48dp"
+                android:background="@drawable/bg_btn_secondary"
+                android:textSize="13sp"
+                android:text="1×" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/kkMenuBtn"
+                style="@style/GameButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:minWidth="46dp"
+                android:background="@drawable/bg_btn_secondary"
+                android:textSize="14sp"
+                android:text="☰" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Schwierigkeits-Menü -->
+    <ScrollView
+        android:id="@+id/kkMenu"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#F5141821"
+        android:fillViewport="true"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="💎 Kristallkrieg"
+                android:textColor="#E8ECF4"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:gravity="center"
+                android:text="Kristalle sammeln, Einheiten auf 3 Bahnen schicken, die gegnerische Festung zerstören.\nKonter-Dreieck: ⚔️ schlägt 🏹 schlägt 🐴 schlägt ⚔️"
+                android:textColor="#8A93A8"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:id="@+id/kkDiffList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="vertical" />
+        </LinearLayout>
+    </ScrollView>
+</FrameLayout>

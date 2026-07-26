@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shop-Karte (Hochformat): Turm-Vorschau oben, Name + Kosten darunter -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="80dp"
+    android:layout_height="wrap_content"
+    android:layout_margin="3dp"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:padding="6dp"
+    android:background="@drawable/bg_shop_item"
+    android:clickable="true"
+    android:focusable="true">
+
+    <de.schlecht.towerdefense.TowerIconView
+        android:id="@+id/towerIcon"
+        android:layout_width="42dp"
+        android:layout_height="42dp" />
+
+    <TextView
+        android:id="@+id/towerName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textColor="#E8ECF4"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/towerCost"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#FFD75E"
+        android:textSize="10sp" />
+</LinearLayout>
